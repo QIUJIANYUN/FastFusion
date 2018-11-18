@@ -6,6 +6,7 @@
 
 #include "../ITMLib/Objects/Camera/ITMRGBDCalib.h"
 #include "../ITMLib/Utils/ITMImageTypes.h"
+#include "../ORUtils/DatasetReader.h"
 
 namespace InputSource {
 
@@ -190,4 +191,33 @@ namespace InputSource {
 		Vector2i getDepthImageSize(void) const { return imgSize; }
 		Vector2i getRGBImageSize(void) const { return imgSize; }
 	};
+
+	class DatasetReader : public BaseImageSourceEngine
+	{
+	private:
+		static const int BUF_SIZE = 2048;
+		char rgbImageMask[BUF_SIZE];
+		char depthImageMask[BUF_SIZE];
+
+		vector<DataReader::ICell> vColorList;
+		vector<DataReader::ICell> vDepthList;
+		vector<DataReader::IMUData> vIMUList;
+
+		mutable ITMUChar4Image *cached_rgb;
+		mutable ITMShortImage *cached_depth;
+
+		void loadIntoCache() const;
+		mutable int cachedFrameNo;
+		int currentFrameNo;
+	public:
+
+		DatasetReader(const char *calibFilename, const char *rgbImageMask, const char *depthImageMask, const char *rgbImageTimestamp);
+		~DatasetReader();
+
+		bool hasMoreImages(void) const;
+		void getImages(ITMUChar4Image *rgb, ITMShortImage *rawDepth);
+		Vector2i getDepthImageSize(void) const;
+		Vector2i getRGBImageSize(void) const;
+	};
 }
+

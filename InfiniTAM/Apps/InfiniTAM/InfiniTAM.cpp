@@ -54,13 +54,16 @@ static void CreateDefaultImageSource(ImageSourceEngine* & imageSource, IMUSource
 		}
 		else
 		{
-			printf("using imu data: %s\n", filename_imu);
+			printf("using zr300 data: %s\n", filename_imu);
+			imageSource = new DatasetReader(calibFile, filename1, filename2, filename_imu);
+		/*	printf("using imu data: %s\n", filename_imu);
 			imageSource = new RawFileReader(calibFile, filename1, filename2, Vector2i(320, 240), 0.5f);
-			imuSource = new IMUSourceEngine(filename_imu);
+			imuSource = new IMUSourceEngine(filename_imu);*/
 		}
 
 		if (imageSource->getDepthImageSize().x == 0)
 		{
+		    cout<<"didnt get any image"<<endl;
 			delete imageSource;
 			if (imuSource != NULL) delete imuSource;
 			imuSource = NULL;

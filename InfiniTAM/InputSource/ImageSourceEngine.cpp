@@ -284,3 +284,101 @@ void BlankImageGenerator::getImages(ITMUChar4Image *rgb, ITMShortImage *rawDepth
 
 template class InputSource::ImageFileReader<ImageMaskPathGenerator>;
 template class InputSource::ImageFileReader<ImageListPathGenerator>;
+
+
+DatasetReader::DatasetReader(const char *calibFilename, const char *rgbImageMask, const char *depthImageMask,
+							 const char *rgbImageTimestamp): BaseImageSourceEngine(calibFilename)
+{
+	strncpy(this->rgbImageMask, rgbImageMask, BUF_SIZE);
+	strncpy(this->depthImageMask, depthImageMask, BUF_SIZE);
+
+	DataReader::loadImageList(rgbImageTimestamp,vColorList);
+	DataReader::loadImageList(rgbImageTimestamp,vDepthList);
+
+	currentFrameNo = 20;
+	cachedFrameNo = 19;
+
+	cached_rgb = NULL;
+	cached_depth = NULL;
+}
+
+DatasetReader::~DatasetReader()
+{
+	delete cached_rgb;
+	delete cached_depth;
+}
+void DatasetReader::loadIntoCache(void) const
+{
+	if (currentFrameNo == cachedFrameNo) return;
+	cachedFrameNo = currentFrameNo;
+
+	//TODO> make nicer
+	cached_rgb = new ITMUChar4Image(true, false);
+	cached_depth = new ITMShortImage(true, false);
+
+	string str = string(rgbImageMask) + "/" + vColorList[currentFrameNo].imgName;
+//	sprintf(str, rgbImageMask, "/", vColorList[currentFrameNo].imgName.c_str());
+
+	if (!ReadImageFromFile(cached_rgb, str.c_str()))
+	{
+		delete cached_rgb; cached_rgb = NULL;
+		printf("error reading file '%s'\n", str.c_str());
+	}
+
+//	sprintf(str, depthImageMask, "/", vDepthList[currentFrameNo].imgName.c_str());
+	str.clear();
+	str = string(depthImageMask) + "/" + vColorList[currentFrameNo].imgName;
+	if (!ReadImageFromFile(cached_depth, str.c_str()))
+	{
+		delete cached_depth; cached_depth = NULL;
+		printf("error reading file '%s'\n", str.c_str());
+	}
+}
+
+bool DatasetReader::hasMoreImages(void) const
+{
+	loadIntoCache();
+	return ((cached_rgb!=NULL)&&(cached_depth!=NULL));
+}
+
+void DatasetReader::getImages(ITMUChar4Image *rgb, ITMShortImage *rawDepth)
+{
+	bool bUsedCache = false;
+	if (cached_rgb != NULL) {
+		rgb->SetFrom(cached_rgb, ORUtils::MemoryBlock<Vector4u>::CPU_TO_CPU);
+		delete cached_rgb;
+		cached_rgb = NULL;
+		bUsedCache = true;
+	}
+	if (cached_depth != NULL) {
+		rawDepth->SetFrom(cached_depth, ORUtils::MemoryBlock<short>::CPU_TO_CPU);
+		delete cached_depth;
+		cached_depth = NULL;
+		bUsedCache = true;
+	}
+
+	if (!bUsedCache) {
+		char str[2048];
+
+		sprintf(str, rgbImageMask, currentFrameNo);
+		if (!ReadImageFromFile(rgb, str)) printf("error reading file '%s'\n", str);
+
+		sprintf(str, depthImageMask, currentFrameNo);
+		if (!ReadImageFromFile(rawDepth, str)) printf("error reading file '%s'\n", str);
+	}
+
+	++currentFrameNo;
+}
+
+Vector2i DatasetReader::getDepthImageSize(void) const
+{
+	loadIntoCache();
+	return cached_depth->noDims;
+}
+
+Vector2i DatasetReader::getRGBImageSize(void) const
+{
+	loadIntoCache();
+	if (cached_rgb != NULL) return cached_rgb->noDims;
+	return cached_depth->noDims;
+}

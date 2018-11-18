@@ -24,6 +24,8 @@ SET(sources
 FileUtils.cpp
 KeyValueConfig.cpp
 SE3Pose.cpp
+        IMUdata.cpp
+        DatasetReader.cpp
 )
 
 SET(headers
@@ -44,6 +46,8 @@ PlatformIndependence.h
 SE3Pose.h
 SVMClassifier.h
 Vector.h
+        IMUdata.h
+        DatasetReader.h
 )
 
 #############################

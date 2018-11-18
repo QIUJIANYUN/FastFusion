@@ -2,7 +2,7 @@
 # UseRealSense.cmake #
 ######################
 
-OPTION(WITH_REALSENSE "Build with Intel RealSense support?" OFF)
+OPTION(WITH_REALSENSE "Build with Intel RealSense support?" ON)
 
 IF(WITH_REALSENSE)
   FIND_PACKAGE(RealSense REQUIRED)

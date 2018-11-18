@@ -4,7 +4,7 @@
 
 cmake_minimum_required(VERSION 2.8)
 
-PROJECT(InfiniTAM)
+PROJECT(InfiniTAMv3)
 
 #################################
 # Specify the CMake module path #
