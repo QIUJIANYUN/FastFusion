@@ -54,6 +54,123 @@ _CPU_AND_GPU_CODE_ inline void filterDepth(DEVICEPTR(float) *imageData_out, cons
 	imageData_out[x + y*imgDims.x] = final_depth;
 }
 
+_CPU_AND_GPU_CODE_ inline void filterdelecting(DEVICEPTR(float) *imageData_out, const CONSTPTR(float) *imageData_in, int x, int y, Vector2i imgDims)
+{
+	bool enable=false;
+	float z,tmpz;
+	z = imageData_in[x + y * imgDims.x];
+	if (z < 0.0f) { imageData_out[x + y * imgDims.x] = -1.0f; return; }
+	int rad = 15;
+	do{
+		//x left
+		int i = 0;
+		if (x > rad)
+			for (; i < rad; ++i) {
+				tmpz = imageData_in[x-i + y * imgDims.x];
+				if (tmpz < 0.0f) break;
+			}
+		if (i == rad){
+			enable = true;
+			break;
+		}
+		//x right
+		i = 0;
+		if (x < imgDims.x-rad)
+			for (; i < rad; ++i) {
+				tmpz = imageData_in[x+i + y * imgDims.x];
+				if (tmpz < 0.0f) break;
+			}
+		if (i == rad){
+			enable = true;
+			break;
+		}
+		//y up
+		i = 0;
+		if (y > rad)
+			for (; i < rad; ++i) {
+				tmpz = imageData_in[x + (y-i) * imgDims.x];
+				if (tmpz < 0.0f) break;
+			}
+		if (i == rad){
+			enable = true;
+			break;
+		}
+
+		i = 0;
+		if (y < imgDims.y-rad)
+			for (; i < rad; ++i) {
+				tmpz = imageData_in[x + (y+i) * imgDims.x];
+				if (tmpz < 0.0f) break;
+			}
+		if (i == rad){
+			enable = true;
+			break;
+		}
+
+	}while(0);
+
+	if (!enable) imageData_out[x + y * imgDims.x] = -1.0f;
+	else imageData_out[x + y * imgDims.x] = z;
+}
+
+_CPU_AND_GPU_CODE_ inline void filterdisdelecting(DEVICEPTR(float) *imageData_out, const CONSTPTR(float) *imageData_in, int x, int y, Vector2i imgDims)
+{
+	bool enable=false;
+	float z,tmpz,dis;
+	int count=0;
+	z = imageData_in[x + y * imgDims.x];
+	if (z < 0.0f) { imageData_out[x + y * imgDims.x] = -1.0f; return; }
+	for (int i = -3; i < 3; ++i) {//3
+		for (int j = -3; j < 3; ++j) {//3
+			if (i == 0 && j == 0) continue;
+			tmpz = imageData_in[(x + j) + (y + i) * imgDims.x];
+			dis = tmpz - z > 0? tmpz -z:z-tmpz;
+			if (tmpz < 0.0f) continue;
+			if (dis<0.005) {//0.005//多个相邻点深度接近该点深度，该点不是噪点
+				count++;
+				if (count>=3) enable = true;//3
+				break;
+			}
+		}
+		if (enable) break;
+	}
+	if (!enable){
+		imageData_out[x + y*imgDims.x] = -1.0f;
+	}
+	else imageData_out[x + y*imgDims.x] = z;
+}
+
+#define MEAN_SIGMA_L 1.2232f
+_CPU_AND_GPU_CODE_ inline void filterBilateral(DEVICEPTR(float) *imageData_out, const CONSTPTR(float) *imageData_in, int x, int y, Vector2i imgDims)
+{
+	float z, tmpz, dz, final_depth = 0.0f, w, w_sum = 0.0f;
+
+	z = imageData_in[x + y * imgDims.x];
+	if (z < 0.0f) { imageData_out[x + y * imgDims.x] = -1.0f; return; }
+
+	float sigma_z = 35.0f / 1000.0f;
+
+	for (int i = -5, count = 0; i <=5; i++) for (int j = -5; j <= 5; j++, count++)
+		{
+			if (i == 0 && j==0) continue;
+			tmpz = imageData_in[(x + j) + (y + i) * imgDims.x];
+			if (tmpz < 0.0f) continue;//如果参考点没有深度，则这个参考点不考虑
+			dz = (tmpz - z);
+			dz *= dz;
+			if(dz>0.005) continue;
+//		w = exp(-0.5f * ((abs(i) + abs(j))*MEAN_SIGMA_L*MEAN_SIGMA_L + dz * sigma_z * sigma_z));
+			w = exp(-0.5f * dz * sigma_z * sigma_z);
+			w_sum += w;
+			final_depth += w*tmpz;
+		}
+	if (w_sum!=0)
+	{
+		final_depth /= w_sum;
+		imageData_out[x + y*imgDims.x] = final_depth;
+	}
+	else
+		imageData_out[x + y*imgDims.x] = -1.0f;
+}
 
 _CPU_AND_GPU_CODE_ inline void computeNormalAndWeight(const CONSTPTR(float) *depth_in, DEVICEPTR(Vector4f) *normal_out, DEVICEPTR(float) *sigmaZ_out, int x, int y, Vector2i imgDims, Vector4f intrinparam)
 {

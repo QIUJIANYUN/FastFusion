@@ -28,12 +28,13 @@ using namespace ITMLib;
     @para arg4 the IMU images. If images are omitted, some live sources will
     be tried.
 */
-static void CreateDefaultImageSource(ImageSourceEngine* & imageSource, IMUSourceEngine* & imuSource, const char *arg1, const char *arg2, const char *arg3, const char *arg4)
+static void CreateDefaultImageSource(ImageSourceEngine* & imageSource, IMUSourceEngine* & imuSource, const char *arg1, const char *arg2, const char *arg3, const char *arg4, const char *arg5)
 {
 	const char *calibFile = arg1;
 	const char *filename1 = arg2;
 	const char *filename2 = arg3;
-	const char *filename_imu = arg4;
+	const char *sequence = arg4;
+	const char *filename_imu = arg5;
 
 	if (strcmp(calibFile, "viewer") == 0)
 	{
@@ -47,19 +48,22 @@ static void CreateDefaultImageSource(ImageSourceEngine* & imageSource, IMUSource
 	if ((imageSource == NULL) && (filename2 != NULL))
 	{
 		printf("using rgb images: %s\nusing depth images: %s\n", filename1, filename2);
-		if (filename_imu == NULL)
+		if (sequence == NULL)
 		{
 			ImageMaskPathGenerator pathGenerator(filename1, filename2);
 			imageSource = new ImageFileReader<ImageMaskPathGenerator>(calibFile, pathGenerator);
 		}
-		else
+		else if(filename_imu ==NULL)
 		{
 			printf("using zr300 data: %s\n", filename_imu);
-			imageSource = new DatasetReader(calibFile, filename1, filename2, filename_imu);
-		/*	printf("using imu data: %s\n", filename_imu);
+			imageSource = new DatasetReader(calibFile, filename1, filename2, sequence);
+		}
+		else
+        {
+            /*	printf("using imu data: %s\n", filename_imu);
 			imageSource = new RawFileReader(calibFile, filename1, filename2, Vector2i(320, 240), 0.5f);
 			imuSource = new IMUSourceEngine(filename_imu);*/
-		}
+        }
 
 		if (imageSource->getDepthImageSize().x == 0)
 		{
@@ -160,6 +164,7 @@ try
 	const char *arg2 = NULL;
 	const char *arg3 = NULL;
 	const char *arg4 = NULL;
+	const char *arg5 = NULL;
 
 	int arg = 1;
 	do {
@@ -170,24 +175,20 @@ try
 		if (argv[arg] != NULL) arg3 = argv[arg]; else break;
 		++arg;
 		if (argv[arg] != NULL) arg4 = argv[arg]; else break;
+        ++arg;
+        if (argv[arg] != NULL) arg5 = argv[arg]; else break;
 	} while (false);
 
 	if (arg == 1) {
-		printf("usage: %s [<calibfile> [<imagesource>] ]\n"
-		       "  <calibfile>   : path to a file containing intrinsic calibration parameters\n"
-		       "  <imagesource> : either one argument to specify OpenNI device ID\n"
-		       "                  or two arguments specifying rgb and depth file masks\n"
-		       "\n"
-		       "examples:\n"
-		       "  %s ./Files/Teddy/calib.txt ./Files/Teddy/Frames/%%04i.ppm ./Files/Teddy/Frames/%%04i.pgm\n"
-		       "  %s ./Files/Teddy/calib.txt\n\n", argv[0], argv[0], argv[0]);
+		cout << "please check our input format."<<endl;
+        return -1;
 	}
 
 	printf("initialising ...\n");
 	ImageSourceEngine *imageSource = NULL;
 	IMUSourceEngine *imuSource = NULL;
 
-	CreateDefaultImageSource(imageSource, imuSource, arg1, arg2, arg3, arg4);
+	CreateDefaultImageSource(imageSource, imuSource, arg1, arg2, arg3, arg4, arg5);
 	if (imageSource==NULL)
 	{
 		std::cout << "failed to open any image stream" << std::endl;

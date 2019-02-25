@@ -22,6 +22,9 @@ ITMViewBuilder_CUDA::~ITMViewBuilder_CUDA(void) { }
 __global__ void convertDisparityToDepth_device(float *depth_out, const short *depth_in, Vector2f disparityCalibParams, float fx_depth, Vector2i imgSize);
 __global__ void convertDepthAffineToFloat_device(float *d_out, const short *d_in, Vector2i imgSize, Vector2f depthCalibParams);
 __global__ void filterDepth_device(float *imageData_out, const float *imageData_in, Vector2i imgDims);
+__global__ void filterdelecting_device(float *imageData_out, const float *imageData_in, Vector2i imgDims);
+__global__ void filterdisdelecting_device(float *imageData_out, const float *imageData_in, Vector2i imgDims);
+__global__ void filterBilateral_device(float *imageData_out, const float *imageData_in, Vector2i imgDims);
 __global__ void ComputeNormalAndWeight_device(const float* depth_in, Vector4f* normal_out, float *sigmaL_out, Vector2i imgDims, Vector4f intrinsic);
 
 //---------------------------------------------------------------------------
@@ -73,11 +76,9 @@ void ITMViewBuilder_CUDA::UpdateView(ITMView **view_ptr, ITMUChar4Image *rgbImag
 	if (useBilateralFilter)
 	{
 		//5 steps of bilateral filtering
-		this->DepthFiltering(this->floatImage, view->depth);
-		this->DepthFiltering(view->depth, this->floatImage);
-		this->DepthFiltering(this->floatImage, view->depth);
-		this->DepthFiltering(view->depth, this->floatImage);
-		this->DepthFiltering(this->floatImage, view->depth);
+		this->BilateralFiltering( this->floatImage,view->depth);
+		this->Filter_disdelecting(view->depth,this->floatImage);
+		this->Filter_delecting( this->floatImage,view->depth);
 		view->depth->SetFrom(this->floatImage, MemoryBlock<float>::CUDA_TO_CUDA);
 	}
 
@@ -155,6 +156,45 @@ void ITMViewBuilder_CUDA::DepthFiltering(ITMFloatImage *image_out, const ITMFloa
 	ORcudaKernelCheck;
 }
 
+void ITMViewBuilder_CUDA::Filter_delecting(ITMFloatImage *image_out, const ITMFloatImage *image_in)
+{
+	Vector2i imgDims = image_in->noDims;
+
+	const float *imageData_in = image_in->GetData(MEMORYDEVICE_CUDA);
+	float *imageData_out = image_out->GetData(MEMORYDEVICE_CUDA);
+
+	dim3 blockSize(16, 16);
+	dim3 gridSize((int)ceil((float)imgDims.x / (float)blockSize.x), (int)ceil((float)imgDims.y / (float)blockSize.y));
+
+	filterdelecting_device << <gridSize, blockSize >> >(imageData_out, imageData_in, imgDims);
+}
+
+void ITMViewBuilder_CUDA::Filter_disdelecting(ITMFloatImage *image_out, const ITMFloatImage *image_in)
+{
+	Vector2i imgDims = image_in->noDims;
+
+	const float *imageData_in = image_in->GetData(MEMORYDEVICE_CUDA);
+	float *imageData_out = image_out->GetData(MEMORYDEVICE_CUDA);
+
+	dim3 blockSize(16, 16);
+	dim3 gridSize((int)ceil((float)imgDims.x / (float)blockSize.x), (int)ceil((float)imgDims.y / (float)blockSize.y));
+
+	filterdisdelecting_device << <gridSize, blockSize >> >(imageData_out, imageData_in, imgDims);
+}
+
+void ITMViewBuilder_CUDA::BilateralFiltering(ITMFloatImage *image_out, const ITMFloatImage *image_in)
+{
+	Vector2i imgDims = image_in->noDims;
+
+	const float *imageData_in = image_in->GetData(MEMORYDEVICE_CUDA);
+	float *imageData_out = image_out->GetData(MEMORYDEVICE_CUDA);
+
+	dim3 blockSize(16, 16);
+	dim3 gridSize((int)ceil((float)imgDims.x / (float)blockSize.x), (int)ceil((float)imgDims.y / (float)blockSize.y));
+
+	filterBilateral_device << <gridSize, blockSize >> >(imageData_out, imageData_in, imgDims);
+}
+
 void ITMViewBuilder_CUDA::ComputeNormalAndWeights(ITMFloat4Image *normal_out, ITMFloatImage *sigmaZ_out, const ITMFloatImage *depth_in, Vector4f intrinsic)
 {
 	Vector2i imgDims = depth_in->noDims;
@@ -204,6 +244,33 @@ __global__ void filterDepth_device(float *imageData_out, const float *imageData_
 	if (x < 2 || x > imgDims.x - 2 || y < 2 || y > imgDims.y - 2) return;
 
 	filterDepth(imageData_out, imageData_in, x, y, imgDims);
+}
+
+__global__ void filterdelecting_device(float *imageData_out, const float *imageData_in, Vector2i imgDims)
+{
+	int x = threadIdx.x + blockIdx.x * blockDim.x, y = threadIdx.y + blockIdx.y * blockDim.y;
+
+	if (x < 2 || x > imgDims.x - 2 || y < 2 || y > imgDims.y - 2) return;
+
+	filterdelecting(imageData_out, imageData_in, x, y, imgDims);
+}
+
+__global__ void filterdisdelecting_device(float *imageData_out, const float *imageData_in, Vector2i imgDims)
+{
+	int x = threadIdx.x + blockIdx.x * blockDim.x, y = threadIdx.y + blockIdx.y * blockDim.y;
+
+	if (x < 3 || x > imgDims.x - 3 || y < 3 || y > imgDims.y - 3) return;
+
+	filterdisdelecting(imageData_out, imageData_in, x, y, imgDims);
+}
+
+__global__ void filterBilateral_device(float *imageData_out, const float *imageData_in, Vector2i imgDims)
+{
+	int x = threadIdx.x + blockIdx.x * blockDim.x, y = threadIdx.y + blockIdx.y * blockDim.y;
+
+	if (x < 10 || x > imgDims.x - 10 || y < 10 || y > imgDims.y - 10) return;
+
+	filterBilateral(imageData_out, imageData_in, x, y, imgDims);
 }
 
 __global__ void ComputeNormalAndWeight_device(const float* depth_in, Vector4f* normal_out, float *sigmaZ_out, Vector2i imgDims, Vector4f intrinsic)

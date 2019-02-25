@@ -15,7 +15,7 @@ using namespace ITMLib;
 //#define DEBUG_MULTISCENE
 
 // number of nearest neighbours to find in the loop closure detection
-static const int k_loopcloseneighbours = 1;
+static const int k_loopcloseneighbours = 3;
 
 // maximum distance reported by LCD library to attempt relocalisation
 static const float F_maxdistattemptreloc = 0.05f;

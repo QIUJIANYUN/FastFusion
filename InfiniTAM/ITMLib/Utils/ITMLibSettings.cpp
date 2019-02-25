@@ -27,8 +27,6 @@ ITMLibSettings::ITMLibSettings(void)
 #endif
 #endif
 
-	//deviceType = DEVICE_CPU;
-
 	/// how swapping works: disabled, fully enabled (still with dragons) and delete what's not visible - not supported in loop closure version
 	swappingMode = SWAPPINGMODE_DISABLED;
 
@@ -39,17 +37,18 @@ ITMLibSettings::ITMLibSettings(void)
 	useBilateralFilter = true;
 
 	/// what to do on tracker failure: ignore, relocalise or stop integration - not supported in loop closure version
-	behaviourOnFailure = FAILUREMODE_IGNORE;
+	behaviourOnFailure = FAILUREMODE_RELOCALISE;
+//	behaviourOnFailure = FAILUREMODE_IGNORE;
 
 	/// switch between various library modes - basic, with loop closure, etc.
 	libMode = LIBMODE_BASIC;
-//		libMode = LIBMODE_LOOPCLOSURE;
+//    libMode = LIBMODE_LOOPCLOSURE;
 //	libMode = LIBMODE_BASIC_SURFELS;
 
-//	// Default ICP tracking
-//	trackerConfig = "type=icp,levels=rrrbb,minstep=1e-3,"
-//					"outlierC=0.01,outlierF=0.002,"
-//					"numiterC=10,numiterF=2,failureDec=5.0"; // 5 for normal, 20 for loop closure
+	// Default ICP tracking
+	trackerConfig = "type=icp,levels=rrrbb,minstep=1e-4,"
+					"outlierC=0.01,outlierF=0.002,"
+					"numiterC=20,numiterF=100,failureDec=30.0"; // 5 for normal, 20 for loop closure
 
 //	 //Depth-only extended tracker:
 //	trackerConfig = "type=extended,levels=rrbb,useDepth=1,minstep=1e-4,"
@@ -58,12 +57,12 @@ ITMLibSettings::ITMLibSettings(void)
 //					  "framesToSkip=20,framesToWeight=50,failureDec=20.0";
 
 	// For hybrid intensity+depth tracking:
-	trackerConfig = "type=extended,levels=bbb,useDepth=1,useColour=1,"
-					  "colourWeight=0.3,minstep=1e-4,"
-					  "outlierColourC=0.175,outlierColourF=0.005,"
-					  "outlierSpaceC=0.1,outlierSpaceF=0.004,"
-					  "numiterC=20,numiterF=50,tukeyCutOff=8,"
-					  "framesToSkip=20,framesToWeight=50,failureDec=20.0";
+//	trackerConfig = "type=extended,levels=bbb,useDepth=1,useColour=1,"
+//					  "colourWeight=0.3,minstep=1e-4,"
+//					  "outlierColourC=0.175,outlierColourF=0.005,"
+//					  "outlierSpaceC=0.1,outlierSpaceF=0.004,"
+//					  "numiterC=20,numiterF=50,tukeyCutOff=8,"
+//					  "framesToSkip=20,framesToWeight=50,failureDec=30.0";
 
 	 //Colour only tracking, using rendered colours
 //	trackerConfig = "type=rgb,levels=rrbb";
