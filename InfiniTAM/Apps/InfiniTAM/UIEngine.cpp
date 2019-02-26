@@ -329,6 +329,18 @@ void UIEngine::glutKeyUpFunction(unsigned char key, int x, int y)
 		}
 	}
 	break;
+	case 'u':
+	{
+		uiEngine->freeviewPose.SetT(uiEngine->freeviewPose.GetT() + 0.1 * Vector3f(0.0f, 0.0f, 1.0f));
+		uiEngine->needsRefresh = true;
+		break;
+	}
+	case 'o':
+	{
+		uiEngine->freeviewPose.SetT(uiEngine->freeviewPose.GetT() + 0.1 * Vector3f(0.0f, 0.0f, -1.0f));
+		uiEngine->needsRefresh = true;
+		break;
+	}
 	default:
 		break;
 	}
@@ -456,7 +468,7 @@ void UIEngine::glutMouseMoveFunction(int x, int y)
 		Vector3f axis((float)-movement.y, (float)-movement.x, 0.0f);
 		float angle = scale_rotation * sqrt((float)(movement.x * movement.x + movement.y*movement.y));
 		Matrix3f rot = createRotation(axis, angle);
-		uiEngine->freeviewPose.SetRT(rot * uiEngine->freeviewPose.GetR(), rot * uiEngine->freeviewPose.GetT());
+		uiEngine->freeviewPose.SetRT(rot * uiEngine->freeviewPose.GetR(), /*rot **/ uiEngine->freeviewPose.GetT());
 		uiEngine->freeviewPose.Coerce();
 		uiEngine->needsRefresh = true;
 		break;
@@ -471,7 +483,15 @@ void UIEngine::glutMouseMoveFunction(int x, int y)
 	case 3:
 	{
 		// middle button: translation along z axis
-		uiEngine->freeviewPose.SetT(uiEngine->freeviewPose.GetT() + scale_translation * Vector3f(0.0f, 0.0f, (float)movement.y));
+		//uiEngine->freeviewPose.SetT(uiEngine->freeviewPose.GetT() + scale_translation * Vector3f(0.0f, 0.0f, (float)movement.y));
+		//uiEngine->needsRefresh = true;
+
+		// middle button: rotata along z axis
+		Vector3f axis(0, 0, movement.y>0  ? 1.0f : -1.0f);
+		float angle = scale_rotation * sqrt((float)(movement.x * movement.x + movement.y*movement.y));
+		Matrix3f rot = createRotation(axis, angle);
+		uiEngine->freeviewPose.SetRT(rot * uiEngine->freeviewPose.GetR(), rot * uiEngine->freeviewPose.GetT());
+		uiEngine->freeviewPose.Coerce();
 		uiEngine->needsRefresh = true;
 		break;
 	}
