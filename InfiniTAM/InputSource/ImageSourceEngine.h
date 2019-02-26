@@ -198,6 +198,7 @@ namespace InputSource {
 		static const int BUF_SIZE = 2048;
 		char rgbImageMask[BUF_SIZE];
 		char depthImageMask[BUF_SIZE];
+		char IMU[BUF_SIZE];
 
 		vector<DataReader::ICell> vColorList;
 		vector<DataReader::ICell> vDepthList;
@@ -206,18 +207,23 @@ namespace InputSource {
 		mutable ITMUChar4Image *cached_rgb;
 		mutable ITMShortImage *cached_depth;
 
+		void timestampAlignment();
 		void loadIntoCache() const;
 		mutable int cachedFrameNo;
 		int currentFrameNo;
+		int currentIMUNo;
+		int totalFrameNo;
 	public:
 
-		DatasetReader(const char *calibFilename, const char *rgbImageMask, const char *depthImageMask, const char *rgbImageTimestamp);
+		DatasetReader(const char *calibFilename, const char *rgbImageMask, const char *depthImageMask, const char *rgbImageTimestamp, const char *imuTimestamp);
 		~DatasetReader();
 
 		bool hasMoreImages(void) const;
 		void getImages(ITMUChar4Image *rgb, ITMShortImage *rawDepth);
 		Vector2i getDepthImageSize(void) const;
 		Vector2i getRGBImageSize(void) const;
+		void getRelatedIMU(vector<DataReader::IMUData> &relatedIMU);//获取上一帧到当前帧之间的IMU
+		int getCurrentFrameNum();
 	};
 }
 

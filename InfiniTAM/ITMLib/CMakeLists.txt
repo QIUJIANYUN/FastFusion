@@ -399,12 +399,14 @@ SET(ITMLIB_TRACKERS_CPU_SOURCES
 Trackers/CPU/ITMColorTracker_CPU.cpp
 Trackers/CPU/ITMDepthTracker_CPU.cpp
 Trackers/CPU/ITMExtendedTracker_CPU.cpp
+Trackers/CPU/FastFusionTracker_CPU.cpp
 )
 
 SET(ITMLIB_TRACKERS_CPU_HEADERS
 Trackers/CPU/ITMColorTracker_CPU.h
 Trackers/CPU/ITMDepthTracker_CPU.h
 Trackers/CPU/ITMExtendedTracker_CPU.h
+Trackers/CPU/FastFusionTracker_CPU.h
 )
 
 ##
@@ -412,13 +414,14 @@ SET(ITMLIB_TRACKERS_CUDA_SOURCES
 Trackers/CUDA/ITMColorTracker_CUDA.cu
 Trackers/CUDA/ITMDepthTracker_CUDA.cu
 Trackers/CUDA/ITMExtendedTracker_CUDA.cu
-
+Trackers/CUDA/FastFusionTracker_CUDA.cu
 )
 
 SET(ITMLIB_TRACKERS_CUDA_HEADERS
 Trackers/CUDA/ITMColorTracker_CUDA.h
 Trackers/CUDA/ITMDepthTracker_CUDA.h
 Trackers/CUDA/ITMExtendedTracker_CUDA.h
+Trackers/CUDA/FastFusionTracker_CUDA.h
 )
 
 ##
@@ -429,6 +432,7 @@ Trackers/Interface/ITMExtendedTracker.cpp
 Trackers/Interface/ITMFileBasedTracker.cpp
 Trackers/Interface/ITMForceFailTracker.cpp
 Trackers/Interface/ITMIMUTracker.cpp
+Trackers/Interface/FastFusionTracker.cpp
 )
 
 SET(ITMLIB_TRACKERS_INTERFACE_HEADERS
@@ -440,6 +444,7 @@ Trackers/Interface/ITMFileBasedTracker.h
 Trackers/Interface/ITMForceFailTracker.h
 Trackers/Interface/ITMIMUTracker.h
 Trackers/Interface/ITMTracker.h
+Trackers/Interface/FastFusionTracker.h
 )
 
 ##

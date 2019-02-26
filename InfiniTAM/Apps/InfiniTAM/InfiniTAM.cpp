@@ -36,6 +36,10 @@ static void CreateDefaultImageSource(ImageSourceEngine* & imageSource, IMUSource
 	const char *sequence = arg4;
 	const char *filename_imu = arg5;
 
+	std::fstream _file;
+	_file.open(filename_imu,ios::in);
+	if(!_file) filename_imu = "";
+
 	if (strcmp(calibFile, "viewer") == 0)
 	{
 		imageSource = new BlankImageGenerator("", Vector2i(640, 480));
@@ -53,10 +57,10 @@ static void CreateDefaultImageSource(ImageSourceEngine* & imageSource, IMUSource
 			ImageMaskPathGenerator pathGenerator(filename1, filename2);
 			imageSource = new ImageFileReader<ImageMaskPathGenerator>(calibFile, pathGenerator);
 		}
-		else if(filename_imu ==NULL)
+		else if(filename_imu != NULL)
 		{
 			printf("using zr300 data: %s\n", filename_imu);
-			imageSource = new DatasetReader(calibFile, filename1, filename2, sequence);
+			imageSource = new DatasetReader(calibFile, filename1, filename2, sequence, filename_imu);
 		}
 		else
         {
@@ -160,35 +164,31 @@ static void CreateDefaultImageSource(ImageSourceEngine* & imageSource, IMUSource
 int main(int argc, char** argv)
 try
 {
-	const char *arg1 = "";
-	const char *arg2 = NULL;
-	const char *arg3 = NULL;
-	const char *arg4 = NULL;
-	const char *arg5 = NULL;
-
+	const char *cal = "";
+	const char *dir = "";
+	string color_dir;
+	string depth_dir;
+	string sequence_dir;
+	string imu_dir;
 	int arg = 1;
-	do {
-		if (argv[arg] != NULL) arg1 = argv[arg]; else break;
-		++arg;
-		if (argv[arg] != NULL) arg2 = argv[arg]; else break;
-		++arg;
-		if (argv[arg] != NULL) arg3 = argv[arg]; else break;
-		++arg;
-		if (argv[arg] != NULL) arg4 = argv[arg]; else break;
-        ++arg;
-        if (argv[arg] != NULL) arg5 = argv[arg]; else break;
-	} while (false);
 
-	if (arg == 1) {
-		cout << "please check our input format."<<endl;
-        return -1;
+	do{
+		if (argv[arg] != NULL) cal = argv[arg]; else break;
+		++arg;
+		if (argv[arg] != NULL) dir = argv[arg]; else break;
+	} while (false);
+	if(dir != nullptr){
+		color_dir = string(dir) + "/color";
+		depth_dir = string(dir) + "/depth";
+		sequence_dir = string(dir) + "/COLOR.txt";
+		imu_dir = string(dir) + "/IMU.txt";
 	}
 
 	printf("initialising ...\n");
 	ImageSourceEngine *imageSource = NULL;
 	IMUSourceEngine *imuSource = NULL;
 
-	CreateDefaultImageSource(imageSource, imuSource, arg1, arg2, arg3, arg4, arg5);
+	CreateDefaultImageSource(imageSource, imuSource, cal, color_dir.c_str(), depth_dir.c_str(),sequence_dir.c_str(),imu_dir.c_str());
 	if (imageSource==NULL)
 	{
 		std::cout << "failed to open any image stream" << std::endl;

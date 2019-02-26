@@ -28,6 +28,8 @@ ITMLib::ITMRGBDCalib BaseImageSourceEngine::getCalib() const
   return calib;
 }
 
+
+
 ImageMaskPathGenerator::ImageMaskPathGenerator(const char *rgbImageMask_, const char *depthImageMask_)
 {
 	strncpy(rgbImageMask, rgbImageMask_, BUF_SIZE);
@@ -47,6 +49,8 @@ std::string ImageMaskPathGenerator::getDepthImagePath(size_t currentFrameNo) con
 	sprintf(str, depthImageMask, currentFrameNo);
 	return std::string(str);
 }
+
+
 
 ImageListPathGenerator::ImageListPathGenerator(const std::vector<std::string>& rgbImagePaths_, const std::vector<std::string>& depthImagePaths_)
 	: depthImagePaths(depthImagePaths_),
@@ -69,6 +73,8 @@ size_t ImageListPathGenerator::imageCount() const
 {
 	return rgbImagePaths.size();
 }
+
+
 
 template <typename PathGenerator>
 ImageFileReader<PathGenerator>::ImageFileReader(const char *calibFilename, const PathGenerator& pathGenerator_, size_t initialFrameNo)
@@ -146,6 +152,7 @@ Vector2i ImageFileReader<PathGenerator>::getRGBImageSize(void) const
 	return cached_rgb->noDims;
 }
 
+
 CalibSource::CalibSource(const char *calibFilename, Vector2i setImageSize, float ratio)
 	: BaseImageSourceEngine(calibFilename)
 {
@@ -162,6 +169,8 @@ void CalibSource::ResizeIntrinsics(ITMIntrinsics &intrinsics, float ratio)
 	intrinsics.projectionParamsSimple.py *= ratio;
 	intrinsics.projectionParamsSimple.all *= ratio;
 }
+
+
 
 RawFileReader::RawFileReader(const char *calibFilename, const char *rgbImageMask, const char *depthImageMask, Vector2i setImageSize, float ratio)
 	: BaseImageSourceEngine(calibFilename)
@@ -266,6 +275,8 @@ void RawFileReader::getImages(ITMUChar4Image *rgb, ITMShortImage *rawDepth)
 	++currentFrameNo;
 }
 
+
+
 BlankImageGenerator::BlankImageGenerator(const char *calibFilename, Vector2i setImageSize) : BaseImageSourceEngine(calibFilename)
 {
 	this->imgSize = setImageSize;
@@ -286,17 +297,25 @@ template class InputSource::ImageFileReader<ImageMaskPathGenerator>;
 template class InputSource::ImageFileReader<ImageListPathGenerator>;
 
 
+
+
 DatasetReader::DatasetReader(const char *calibFilename, const char *rgbImageMask, const char *depthImageMask,
-							 const char *rgbImageTimestamp): BaseImageSourceEngine(calibFilename)
+							 const char *rgbImageTimestamp, const char *imuTimestamp): BaseImageSourceEngine(calibFilename)
 {
 	strncpy(this->rgbImageMask, rgbImageMask, BUF_SIZE);
 	strncpy(this->depthImageMask, depthImageMask, BUF_SIZE);
+	strncpy(this->IMU, imuTimestamp, BUF_SIZE);
 
 	DataReader::loadImageList(rgbImageTimestamp,vColorList);
 	DataReader::loadImageList(rgbImageTimestamp,vDepthList);
+	DataReader::loadIMUFile(this->IMU, vIMUList);
 
-	currentFrameNo = 20;
-	cachedFrameNo = 19;
+	totalFrameNo = (int)vColorList.size();
+	currentFrameNo = 20;//图像开始位置
+
+	timestampAlignment();
+
+	cachedFrameNo = currentFrameNo - 1;
 
 	cached_rgb = NULL;
 	cached_depth = NULL;
@@ -381,4 +400,44 @@ Vector2i DatasetReader::getRGBImageSize(void) const
 	loadIntoCache();
 	if (cached_rgb != NULL) return cached_rgb->noDims;
 	return cached_depth->noDims;
+}
+
+void DatasetReader::timestampAlignment()
+{
+	int startImuIdx = 0;
+	int startImageIdx = currentFrameNo;
+
+	// 剔除初始的冗余Image数据
+	while (1)
+	{
+		if (vIMUList[0]._t <= vColorList[startImageIdx].timeStamp)
+			break;
+
+		startImageIdx++;
+	}
+	// 将IMU和图片时间戳对齐
+	while(1)
+	{
+		if(vIMUList[startImuIdx]._t > vColorList[startImageIdx].timeStamp)
+			break;
+
+		startImuIdx++;
+	}
+	currentFrameNo = startImageIdx;
+	currentIMUNo = startImuIdx;
+}
+
+void DatasetReader::getRelatedIMU(vector<DataReader::IMUData> &relatedIMU)
+{
+	relatedIMU.clear();
+	while(vIMUList[currentIMUNo]._t <= vColorList[currentFrameNo].timeStamp)//采集上一帧到当前帧的imu
+	{
+		relatedIMU.push_back(vIMUList[currentIMUNo]);
+		currentIMUNo++;
+	}
+}
+
+int DatasetReader::getCurrentFrameNum()
+{
+	return currentFrameNo;
 }

@@ -46,11 +46,18 @@ ITMLibSettings::ITMLibSettings(void)
 //	libMode = LIBMODE_BASIC_SURFELS;
 
 	// Default ICP tracking
-	trackerConfig = "type=icp,levels=rrrbb,minstep=1e-4,"
-					"outlierC=0.01,outlierF=0.002,"
-					"numiterC=20,numiterF=100,failureDec=30.0"; // 5 for normal, 20 for loop closure
+//	trackerConfig = "type=icp,levels=rrrbb,minstep=1e-4,"
+//					"outlierC=0.01,outlierF=0.002,"
+//					"numiterC=20,numiterF=100,failureDec=30.0"; // 5 for normal, 20 for loop closure
 
-//	 //Depth-only extended tracker:
+    // FastFusion
+    trackerConfig = "type=fastfusion,levels=rrrbb,minstep=1e-4,"
+                    "outlierC=0.01,outlierF=0.002,"
+                    "numiterC=20,numiterF=100,failureDec=30.0"; // 5 for normal, 20 for loop closure
+
+
+
+					//	 //Depth-only extended tracker:
 //	trackerConfig = "type=extended,levels=rrbb,useDepth=1,minstep=1e-4,"
 //					  "outlierSpaceC=0.1,outlierSpaceF=0.004,"
 //					  "numiterC=20,numiterF=50,tukeyCutOff=8,"
