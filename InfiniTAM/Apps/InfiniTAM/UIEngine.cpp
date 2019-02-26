@@ -499,7 +499,7 @@ void UIEngine::glutMouseMoveFunction(int x, int y)
 	}
 }
 
-void UIEngine::glutMouseWheelFunction(int button, int dir, int x, int y)
+void UIEngine::glutMouseWheelFunction(int button, int dir, int x, int y)//TODO: implement zoom by mouse wheel
 {
 	UIEngine *uiEngine = UIEngine::Instance();
 
