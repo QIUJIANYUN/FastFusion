@@ -326,7 +326,7 @@ DatasetReader::~DatasetReader()
 	delete cached_rgb;
 	delete cached_depth;
 }
-void DatasetReader::loadIntoCache(void) const
+void DatasetReader::loadIntoCache() const
 {
 	if (currentFrameNo == cachedFrameNo) return;
 	cachedFrameNo = currentFrameNo;
@@ -385,7 +385,7 @@ void DatasetReader::getImages(ITMUChar4Image *rgb, ITMShortImage *rawDepth)
 		sprintf(str, depthImageMask, currentFrameNo);
 		if (!ReadImageFromFile(rawDepth, str)) printf("error reading file '%s'\n", str);
 	}
-
+	imgtime = vColorList[currentFrameNo].timeStamp;
 	++currentFrameNo;
 }
 
@@ -430,14 +430,10 @@ void DatasetReader::timestampAlignment()
 void DatasetReader::getRelatedIMU(vector<DataReader::IMUData> &relatedIMU)
 {
 	relatedIMU.clear();
-	while(vIMUList[currentIMUNo]._t <= vColorList[currentFrameNo].timeStamp)//采集上一帧到当前帧的imu
+	//TODO:正常情况应该是上一帧到当前帧的IMU，但是rovio会错，找出原因
+	while(vIMUList[currentIMUNo]._t <= vColorList[currentFrameNo/* - 1*/].timeStamp)//采集上一帧到当前帧的imu
 	{
 		relatedIMU.push_back(vIMUList[currentIMUNo]);
 		currentIMUNo++;
 	}
-}
-
-int DatasetReader::getCurrentFrameNum()
-{
-	return currentFrameNo;
 }

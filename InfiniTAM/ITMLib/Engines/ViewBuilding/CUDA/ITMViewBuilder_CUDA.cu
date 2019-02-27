@@ -22,8 +22,8 @@ ITMViewBuilder_CUDA::~ITMViewBuilder_CUDA(void) { }
 __global__ void convertDisparityToDepth_device(float *depth_out, const short *depth_in, Vector2f disparityCalibParams, float fx_depth, Vector2i imgSize);
 __global__ void convertDepthAffineToFloat_device(float *d_out, const short *d_in, Vector2i imgSize, Vector2f depthCalibParams);
 __global__ void filterDepth_device(float *imageData_out, const float *imageData_in, Vector2i imgDims);
-__global__ void filterdelecting_device(float *imageData_out, const float *imageData_in, Vector2i imgDims);
-__global__ void filterdisdelecting_device(float *imageData_out, const float *imageData_in, Vector2i imgDims);
+__global__ void zr300_depth_denoise_piece_device(float *imageData_out, const float *imageData_in, Vector2i imgDims);
+__global__ void zr300_depth_denoise_point_device(float *imageData_out, const float *imageData_in, Vector2i imgDims);
 __global__ void filterBilateral_device(float *imageData_out, const float *imageData_in, Vector2i imgDims);
 __global__ void ComputeNormalAndWeight_device(const float* depth_in, Vector4f* normal_out, float *sigmaL_out, Vector2i imgDims, Vector4f intrinsic);
 
@@ -75,11 +75,15 @@ void ITMViewBuilder_CUDA::UpdateView(ITMView **view_ptr, ITMUChar4Image *rgbImag
 
 	if (useBilateralFilter)
 	{
-		//5 steps of bilateral filtering
-		this->BilateralFiltering( this->floatImage,view->depth);
-		this->Filter_disdelecting(view->depth,this->floatImage);
-		this->Filter_delecting( this->floatImage,view->depth);
+		//3 step filtering
+		//1. 双边滤波
+		this->DepthFiltering( this->floatImage,view->depth);
+		//2. 通过距离内有效点的数量滤波
+		this->zr300_depth_denoise_point(view->depth, this->floatImage);
+		//3. 去除噪点（片）
+		this->zr300_depth_denoise_piece(this->floatImage, view->depth);
 		view->depth->SetFrom(this->floatImage, MemoryBlock<float>::CUDA_TO_CUDA);
+		view->depth->SetFrom(this->floatImage, MemoryBlock<float>::CUDA_TO_CPU);
 	}
 
 	if (modelSensorNoise)
@@ -156,7 +160,7 @@ void ITMViewBuilder_CUDA::DepthFiltering(ITMFloatImage *image_out, const ITMFloa
 	ORcudaKernelCheck;
 }
 
-void ITMViewBuilder_CUDA::Filter_delecting(ITMFloatImage *image_out, const ITMFloatImage *image_in)
+void ITMViewBuilder_CUDA::zr300_depth_denoise_piece(ITMFloatImage *image_out, const ITMFloatImage *image_in)
 {
 	Vector2i imgDims = image_in->noDims;
 
@@ -166,10 +170,10 @@ void ITMViewBuilder_CUDA::Filter_delecting(ITMFloatImage *image_out, const ITMFl
 	dim3 blockSize(16, 16);
 	dim3 gridSize((int)ceil((float)imgDims.x / (float)blockSize.x), (int)ceil((float)imgDims.y / (float)blockSize.y));
 
-	filterdelecting_device << <gridSize, blockSize >> >(imageData_out, imageData_in, imgDims);
+	zr300_depth_denoise_piece_device << <gridSize, blockSize >> >(imageData_out, imageData_in, imgDims);
 }
 
-void ITMViewBuilder_CUDA::Filter_disdelecting(ITMFloatImage *image_out, const ITMFloatImage *image_in)
+void ITMViewBuilder_CUDA::zr300_depth_denoise_point(ITMFloatImage *image_out, const ITMFloatImage *image_in)
 {
 	Vector2i imgDims = image_in->noDims;
 
@@ -179,7 +183,7 @@ void ITMViewBuilder_CUDA::Filter_disdelecting(ITMFloatImage *image_out, const IT
 	dim3 blockSize(16, 16);
 	dim3 gridSize((int)ceil((float)imgDims.x / (float)blockSize.x), (int)ceil((float)imgDims.y / (float)blockSize.y));
 
-	filterdisdelecting_device << <gridSize, blockSize >> >(imageData_out, imageData_in, imgDims);
+	zr300_depth_denoise_point_device << <gridSize, blockSize >> >(imageData_out, imageData_in, imgDims);
 }
 
 void ITMViewBuilder_CUDA::BilateralFiltering(ITMFloatImage *image_out, const ITMFloatImage *image_in)
@@ -241,27 +245,27 @@ __global__ void filterDepth_device(float *imageData_out, const float *imageData_
 {
 	int x = threadIdx.x + blockIdx.x * blockDim.x, y = threadIdx.y + blockIdx.y * blockDim.y;
 
-	if (x < 2 || x > imgDims.x - 2 || y < 2 || y > imgDims.y - 2) return;
+	if (x < 6 || x > imgDims.x - 6 || y < 6 || y > imgDims.y - 6) return;
 
 	filterDepth(imageData_out, imageData_in, x, y, imgDims);
 }
 
-__global__ void filterdelecting_device(float *imageData_out, const float *imageData_in, Vector2i imgDims)
+__global__ void zr300_depth_denoise_piece_device(float *imageData_out, const float *imageData_in, Vector2i imgDims)
 {
 	int x = threadIdx.x + blockIdx.x * blockDim.x, y = threadIdx.y + blockIdx.y * blockDim.y;
 
 	if (x < 2 || x > imgDims.x - 2 || y < 2 || y > imgDims.y - 2) return;
 
-	filterdelecting(imageData_out, imageData_in, x, y, imgDims);
+	depth_denoise_piece(imageData_out, imageData_in, x, y, imgDims);
 }
 
-__global__ void filterdisdelecting_device(float *imageData_out, const float *imageData_in, Vector2i imgDims)
+__global__ void zr300_depth_denoise_point_device(float *imageData_out, const float *imageData_in, Vector2i imgDims)
 {
 	int x = threadIdx.x + blockIdx.x * blockDim.x, y = threadIdx.y + blockIdx.y * blockDim.y;
 
 	if (x < 3 || x > imgDims.x - 3 || y < 3 || y > imgDims.y - 3) return;
 
-	filterdisdelecting(imageData_out, imageData_in, x, y, imgDims);
+	depth_denoise_point(imageData_out, imageData_in, x, y, imgDims);
 }
 
 __global__ void filterBilateral_device(float *imageData_out, const float *imageData_in, Vector2i imgDims)

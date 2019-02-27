@@ -510,7 +510,7 @@ void UIEngine::glutMouseWheelFunction(int button, int dir, int x, int y)//TODO: 
 }
 
 void UIEngine::Initialise(int & argc, char** argv, ImageSourceEngine *imageSource, IMUSourceEngine *imuSource, ITMMainEngine *mainEngine,
-	const char *outFolder, ITMLibSettings::DeviceType deviceType)
+	const char *outFolder, ITMLibSettings *settings)
 {
 	this->freeviewActive = false;
 	this->integrationActive = true;
@@ -524,6 +524,7 @@ void UIEngine::Initialise(int & argc, char** argv, ImageSourceEngine *imageSourc
 	this->colourModes_freeview.push_back(UIColourMode("surface normals", ITMMainEngine::InfiniTAM_IMAGE_FREECAMERA_COLOUR_FROM_NORMAL));
 	this->colourModes_freeview.push_back(UIColourMode("confidence", ITMMainEngine::InfiniTAM_IMAGE_FREECAMERA_COLOUR_FROM_CONFIDENCE));
 
+	this->internalSettings = settings;
 	this->imageSource = imageSource;
 	this->imuSource = imuSource;
 	this->mainEngine = mainEngine;
@@ -577,7 +578,7 @@ void UIEngine::Initialise(int & argc, char** argv, ImageSourceEngine *imageSourc
 #endif
 
 	bool allocateGPU = false;
-	if (deviceType == ITMLibSettings::DEVICE_CUDA) allocateGPU = true;
+	if (settings->deviceType == ITMLibSettings::DEVICE_CUDA) allocateGPU = true;
 
 	for (int w = 0; w < NUM_WIN; w++)
 		outImage[w] = new ITMUChar4Image(imageSource->getDepthImageSize(), true, allocateGPU);
@@ -630,7 +631,7 @@ void UIEngine::ProcessFrame()
 {
 	if (!imageSource->hasMoreImages()) return;
 	imageSource->getImages(inputRGBImage, inputRawDepthImage);
-
+	if(internalSettings->useIMU) imageSource->getRelatedIMU(relatedIMU);
 	if (imuSource != NULL) {
 		if (!imuSource->hasMoreMeasurements()) return;
 		else imuSource->getMeasurement(inputIMUMeasurement);
@@ -662,7 +663,9 @@ void UIEngine::ProcessFrame()
 
 	ITMTrackingState::TrackingResult trackerResult;
 	//actual processing on the mailEngine
-	if (imuSource != NULL) trackerResult = mainEngine->ProcessFrame(inputRGBImage, inputRawDepthImage, inputIMUMeasurement);
+	if (internalSettings->useIMU) {
+	    trackerResult = mainEngine->ProcessFrame(inputRGBImage, inputRawDepthImage, NULL, &relatedIMU, imageSource->imgtime);
+	}
 	else trackerResult = mainEngine->ProcessFrame(inputRGBImage, inputRawDepthImage);
 
 	trackingResult = (int)trackerResult;

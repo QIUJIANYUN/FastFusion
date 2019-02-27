@@ -37,7 +37,7 @@ namespace InfiniTAM
 
 			InputSource::ImageSourceEngine *imageSource;
 			InputSource::IMUSourceEngine *imuSource;
-			ITMLib::ITMLibSettings internalSettings;
+			ITMLib::ITMLibSettings *internalSettings;
 			ITMLib::ITMMainEngine *mainEngine;
 
 			StopWatchInterface *timer_instant;
@@ -53,7 +53,7 @@ namespace InfiniTAM
 
 			ITMUChar4Image *inputRGBImage; ITMShortImage *inputRawDepthImage;
 			ITMLib::ITMIMUMeasurement *inputIMUMeasurement;
-
+			vector<DataReader::IMUData> relatedIMU;
 			bool freeviewActive;
 			bool integrationActive;
 			ORUtils::SE3Pose freeviewPose;
@@ -90,7 +90,7 @@ namespace InfiniTAM
 			ITMUChar4Image *saveImage;
 
 			void Initialise(int & argc, char** argv, InputSource::ImageSourceEngine *imageSource, InputSource::IMUSourceEngine *imuSource,
-				ITMLib::ITMMainEngine *mainEngine, const char *outFolder, ITMLib::ITMLibSettings::DeviceType deviceType);
+				ITMLib::ITMMainEngine *mainEngine, const char *outFolder, ITMLib::ITMLibSettings *settings);
 			void Shutdown();
 
 			void Run();

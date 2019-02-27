@@ -40,6 +40,8 @@ namespace InputSource {
 		 */
 		virtual void getImages(ITMUChar4Image *rgb, ITMShortImage *rawDepth) = 0;
 
+		virtual void getRelatedIMU(vector<DataReader::IMUData> &relatedIMU) = 0;//获取上一帧到当前帧之间的IMU
+
 		/**
 		 * \brief Gets the size of the next RGB image (if any).
 		 *
@@ -66,6 +68,9 @@ namespace InputSource {
 		 * \return  true, if the image source engine is able to yield more RGB-D images, or false otherwise.
 		 */
 		virtual bool hasMoreImages(void) const = 0;
+
+	public:
+		double imgtime;
 	};
 
 	class BaseImageSourceEngine : public ImageSourceEngine
@@ -223,7 +228,6 @@ namespace InputSource {
 		Vector2i getDepthImageSize(void) const;
 		Vector2i getRGBImageSize(void) const;
 		void getRelatedIMU(vector<DataReader::IMUData> &relatedIMU);//获取上一帧到当前帧之间的IMU
-		int getCurrentFrameNum();
 	};
 }
 

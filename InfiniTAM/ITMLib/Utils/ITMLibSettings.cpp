@@ -10,6 +10,7 @@ ITMLibSettings::ITMLibSettings(void)
 :	sceneParams(0.02f, 100, 0.005f, 0.2f, 3.0f, false),
 	surfelSceneParams(0.5f, 0.6f, static_cast<float>(20 * M_PI / 180), 0.01f, 0.004f, 3.5f, 25.0f, 4, 1.0f, 5.0f, 20, 10000000, true, true)
 {
+    useIMU = false;
 	// skips every other point when using the colour renderer for creating a point cloud
 	skipPoints = true;
 
@@ -54,7 +55,7 @@ ITMLibSettings::ITMLibSettings(void)
     trackerConfig = "type=fastfusion,levels=rrrbb,minstep=1e-4,"
                     "outlierC=0.01,outlierF=0.002,"
                     "numiterC=20,numiterF=100,failureDec=30.0"; // 5 for normal, 20 for loop closure
-
+    useIMU = true;
 
 
 					//	 //Depth-only extended tracker:

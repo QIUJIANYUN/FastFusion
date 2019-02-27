@@ -58,7 +58,7 @@ namespace ITMLib
 		ITMTrackingState* GetTrackingState(void);
 
 		/// Process a frame with rgb and depth images and (optionally) a corresponding imu measurement
-		ITMTrackingState::TrackingResult ProcessFrame(ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, ITMIMUMeasurement *imuMeasurement = NULL);
+		ITMTrackingState::TrackingResult ProcessFrame(ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, ITMIMUMeasurement *imuMeasurement = NULL, std::vector<DataReader::IMUData> *relatedIMU = NULL, double imgtime = 0);
 
 		/// Get a result image as output
 		Vector2i GetImageSize(void) const;

@@ -56,6 +56,7 @@ namespace ITMLib
 		LibMode libMode;
 
 		const char *trackerConfig;
+		bool useIMU;
 
 		/// Further, scene specific parameters such as voxel size
 		ITMSceneParams sceneParams;
