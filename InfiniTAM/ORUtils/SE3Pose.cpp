@@ -335,3 +335,17 @@ void SE3Pose::Coerce(void)
 	SetParamsFromModelView();
 	SetModelViewFromParams();
 }
+
+void SE3Pose::SetInitM(void)
+{
+	Matrix4<float> mm = GetInvM();
+	Matrix4<float> rr = initM * mm;
+	Vector4<float> tt = initM.getColumn(3) + mm.getColumn(3);
+	tt.v[3] -= 1;
+	mm.setColumn(0, rr.getColumn(0));
+	mm.setColumn(1, rr.getColumn(1));
+	mm.setColumn(2, rr.getColumn(2));
+	mm.setColumn(3, tt);
+	SetInvM(mm);
+	Coerce();
+}

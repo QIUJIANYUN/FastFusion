@@ -14,12 +14,16 @@
 #include "../../../ORUtils/HomkerMap.h"
 #include "../../../ORUtils/SVMClassifier.h"
 
+//#include "../../../ROVIO/RovioTracker.h"
+
 namespace ITMLib
 {
     // Base class for engine performing robust fast motion tracking.
     class FastFusionTracker : public ITMTracker
     {
     private:
+//        RovioTracker *roviotracker;
+
         const ITMLowLevelEngine *lowLevelEngine;
         ITMImageHierarchy<ITMSceneHierarchyLevel> *sceneHierarchy;
         ITMImageHierarchy<ITMTemplatedHierarchyLevel<ITMFloatImage> > *viewHierarchy;
@@ -40,6 +44,8 @@ namespace ITMLib
         void SetEvaluationData(ITMTrackingState *trackingState, const ITMView *view);
 
         void UpdatePoseQuality(int noValidPoints_old, float *hessian_good, float f_old);
+
+//        void InitPoseWithROVIO();
 
         ORUtils::HomkerMap *map;
         ORUtils::SVMClassifier *svmClassifier;

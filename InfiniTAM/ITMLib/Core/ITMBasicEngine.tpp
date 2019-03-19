@@ -39,6 +39,8 @@ ITMBasicEngine<TVoxel,TIndex>::ITMBasicEngine(const ITMLibSettings *settings, co
 	denseMapper = new ITMDenseMapper<TVoxel,TIndex>(settings);
 	denseMapper->ResetScene(scene);
 
+	rovioTracker = new RovioTracker();
+
 	imuCalibrator = new ITMIMUCalibrator_iPad();
 	tracker = ITMTrackerFactory::Instance().Make(imgSize_rgb, imgSize_d, settings, lowLevelEngine, imuCalibrator, scene->sceneParams);
 	trackingController = new ITMTrackingController(tracker, settings);
@@ -79,6 +81,7 @@ ITMBasicEngine<TVoxel,TIndex>::~ITMBasicEngine()
 	delete trackingController;
 
 	delete tracker;
+	delete rovioTracker;
 	delete imuCalibrator;
 
 	delete lowLevelEngine;
@@ -242,17 +245,49 @@ static void QuaternionFromRotationMatrix(const double *matrix, double *q) {
 #endif
 
 template <typename TVoxel, typename TIndex>
-ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, ITMIMUMeasurement *imuMeasurement, std::vector<DataReader::IMUData> *relatedIMU, double imgtime)
+ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, cv::Mat *grayimg, ITMIMUMeasurement *imuMeasurement, std::vector<DataReader::IMUData> *relatedIMU, double imgtime)
 {
 	// prepare image and turn it into a depth image
-	if (imuMeasurement == NULL) viewBuilder->UpdateView(&view, rgbImage, rawDepthImage, settings->useBilateralFilter);
-	else viewBuilder->UpdateView(&view, rgbImage, rawDepthImage, settings->useBilateralFilter, imuMeasurement);
+	if (relatedIMU == NULL) viewBuilder->UpdateView(&view, rgbImage, rawDepthImage, settings->useBilateralFilter);
+	else viewBuilder->UpdateView(&view, rgbImage, rawDepthImage, settings->useBilateralFilter, grayimg, relatedIMU, imgtime);//TODO: BUG collision of eigen and cuda
+    //	else viewBuilder->UpdateView(&view, rgbImage, rawDepthImage, settings->useBilateralFilter, imuMeasurement);
 
-	if (!mainProcessingActive) return ITMTrackingState::TRACKING_FAILED;
+    if (!mainProcessingActive) return ITMTrackingState::TRACKING_FAILED;
 
-	// tracking
-	ORUtils::SE3Pose oldPose(*(trackingState->pose_d));
+    // tracking
+    ORUtils::SE3Pose oldPose(*(trackingState->pose_d));
+
+
+    //init pose with rovio
+    if(relatedIMU != NULL)
+    {
+        float* dep = view->aligned_depth->GetData(MEMORYDEVICE_CPU);
+        cv::Mat Dep = cv::Mat::zeros(480,640,CV_64FC1); // 没有考虑延迟
+        for(int i=0;i<480;i++){
+            int id = i*640;
+            for(int j=0;j<640;j++) {
+                int id1 = id + j;
+                if ((dep[id1]) > 0)
+                    Dep.at<double>(i, j) = (double)(dep[id1]);
+            }
+        }
+        //rovio track
+        rovioTracker->Track(*grayimg, Dep, relatedIMU, imgtime);
+
+        //set rovio pose to ICP init pose
+        Eigen::Matrix4d related_pose;
+        Matrix4f P;
+        related_pose = rovioTracker->T_rel();
+        P.m00 = (float)related_pose(0,0);P.m10 = (float)related_pose(0,1);P.m20 = (float)related_pose(0,2);P.m30 = (float)related_pose(0,3);//0,-2,1
+        P.m01 = (float)related_pose(1,0);P.m11 = (float)related_pose(1,1);P.m21 = (float)related_pose(1,2);P.m31 = (float)related_pose(1,3);
+        P.m02 = (float)related_pose(2,0);P.m12 = (float)related_pose(2,1);P.m22 = (float)related_pose(2,2);P.m32 = (float)related_pose(2,3);
+        P.m03 = (float)related_pose(3,0);P.m13 = (float)related_pose(3,1);P.m23 = (float)related_pose(3,2);P.m33 = (float)related_pose(3,3);
+        trackingState->pose_d->initM = P;
+        trackingState->pose_d->SetInitM();
+    }
+
 	if (trackingActive) trackingController->Track(trackingState, view);
+
 
 	ITMTrackingState::TrackingResult trackerResult = ITMTrackingState::TRACKING_GOOD;
 	switch (settings->behaviourOnFailure) {
@@ -282,7 +317,7 @@ ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITM
 
 		//frame not added and tracking failed -> we need to relocalise
 		if (!hasAddedKeyframe && trackerResult == ITMTrackingState::TRACKING_FAILED)
-		{
+        {
 			relocalisationCount = 10;
 
 			// Reset previous rgb frame since the rgb image is likely different than the one acquired when setting the keyframe

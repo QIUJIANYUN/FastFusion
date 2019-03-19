@@ -31,7 +31,6 @@
 #define SDF_EXCESS_LIST_SIZE 0x8000		// 0x8000 Size of excess list, used to handle collisions. Also max offset (unsigned short) value.
 #define SDF_TRANSFER_BLOCK_NUM 0x1000	// Maximum number of blocks transfered in one swap operation
 
-
 /** \brief
 	A single entry in the hash table.
 */
@@ -53,8 +52,8 @@ namespace ITMLib
 {
 	/** \brief
 	This is the central class for the voxel block hash
-	implementation. It contains all the data needed on the CPU
-	and a pointer to the data structure on the GPU.
+	implementation. It contains all the da needed on the CPU
+	and a pointer to the data structure onat the GPU.
 	*/
 	class ITMVoxelBlockHash
 	{

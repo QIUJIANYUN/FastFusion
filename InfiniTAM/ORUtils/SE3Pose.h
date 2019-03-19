@@ -42,7 +42,8 @@ namespace ORUtils
 		*/
 		void SetModelViewFromParams();
 	public:
-
+		Matrix4<float> initM;
+		void SetInitM();
 		void SetBoth(const Matrix4<float> & M, const float params[6]);
 
 		void SetFrom(float tx, float ty, float tz, float rx, float ry, float rz);

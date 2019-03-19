@@ -335,7 +335,8 @@ void DatasetReader::loadIntoCache() const
 	cached_rgb = new ITMUChar4Image(true, false);
 	cached_depth = new ITMShortImage(true, false);
 
-	string str = string(rgbImageMask) + "/" + vColorList[currentFrameNo].imgName;
+	string str = string(rgbImageMask) + "/" + vColorList[currentFrameNo - 3].imgName;
+	string str_rovio = string(rgbImageMask) + "/" + vColorList[currentFrameNo].imgName;
 //	sprintf(str, rgbImageMask, "/", vColorList[currentFrameNo].imgName.c_str());
 
 	if (!ReadImageFromFile(cached_rgb, str.c_str()))
@@ -343,10 +344,12 @@ void DatasetReader::loadIntoCache() const
 		delete cached_rgb; cached_rgb = NULL;
 		printf("error reading file '%s'\n", str.c_str());
 	}
+	grayimg = cv::imread(str_rovio, 0);
+	imgtime = vColorList[currentFrameNo].timeStamp;
 
 //	sprintf(str, depthImageMask, "/", vDepthList[currentFrameNo].imgName.c_str());
-	str.clear();
-	str = string(depthImageMask) + "/" + vColorList[currentFrameNo].imgName;
+	str.clear(); str_rovio.clear();
+	str = string(depthImageMask) + "/" + vColorList[currentFrameNo - 3].imgName;
 	if (!ReadImageFromFile(cached_depth, str.c_str()))
 	{
 		delete cached_depth; cached_depth = NULL;
@@ -356,8 +359,9 @@ void DatasetReader::loadIntoCache() const
 
 bool DatasetReader::hasMoreImages(void) const
 {
+	if (currentFrameNo > totalFrameNo-5) return 0;
 	loadIntoCache();
-	return ((cached_rgb!=NULL)&&(cached_depth!=NULL));
+	return 1;
 }
 
 void DatasetReader::getImages(ITMUChar4Image *rgb, ITMShortImage *rawDepth)
@@ -385,7 +389,6 @@ void DatasetReader::getImages(ITMUChar4Image *rgb, ITMShortImage *rawDepth)
 		sprintf(str, depthImageMask, currentFrameNo);
 		if (!ReadImageFromFile(rawDepth, str)) printf("error reading file '%s'\n", str);
 	}
-	imgtime = vColorList[currentFrameNo].timeStamp;
 	++currentFrameNo;
 }
 
@@ -431,7 +434,7 @@ void DatasetReader::getRelatedIMU(vector<DataReader::IMUData> &relatedIMU)
 {
 	relatedIMU.clear();
 	//TODO:正常情况应该是上一帧到当前帧的IMU，但是rovio会错，找出原因
-	while(vIMUList[currentIMUNo]._t <= vColorList[currentFrameNo/* - 1*/].timeStamp)//采集上一帧到当前帧的imu
+	while(vIMUList[currentIMUNo]._t <= vColorList[currentFrameNo - 1].timeStamp)//采集上一帧到当前帧的imu
 	{
 		relatedIMU.push_back(vIMUList[currentIMUNo]);
 		currentIMUNo++;

@@ -29,6 +29,8 @@ namespace ITMLib
 		    coordinate system.
 		*/
 		ITMExtrinsics trafo_rgb_to_depth;
+
+		ITMExtrinsics trafo_depth_to_rgb;
 		
 		/// Calibration information to compute depth from disparity images.
 		ITMDisparityCalib disparityCalib;

@@ -52,11 +52,11 @@ ITMLibSettings::ITMLibSettings(void)
 //					"numiterC=20,numiterF=100,failureDec=30.0"; // 5 for normal, 20 for loop closure
 
     // FastFusion
-    trackerConfig = "type=fastfusion,levels=rrrbb,minstep=1e-4,"
-                    "outlierC=0.01,outlierF=0.002,"
-                    "numiterC=20,numiterF=100,failureDec=30.0"; // 5 for normal, 20 for loop closure
+    trackerConfig = "type=fastfusion,levels=rrrtb,minstep=1e-4,"
+                    "outlierC=0.04,outlierF=0.04,"
+                    "numiterC=10,numiterF=30,failureDec=30.0"; // 5 for normal, 20 for loop closure
     useIMU = true;
-
+//	useIMU = false;
 
 					//	 //Depth-only extended tracker:
 //	trackerConfig = "type=extended,levels=rrbb,useDepth=1,minstep=1e-4,"

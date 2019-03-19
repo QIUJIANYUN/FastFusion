@@ -4,6 +4,8 @@
 
 #include "../Camera/ITMCalibIO.h"
 #include "../../Utils/ITMImageTypes.h"
+#include "../../../ORUtils/DatasetReader.h"
+#include "opencv2/core/core.hpp"
 
 namespace ITMLib
 {
@@ -37,6 +39,11 @@ namespace ITMLib
 		// confidence based on distance from center
 		ITMFloatImage *depthConfidence;
 
+		cv::Mat *grayimg;
+        ITMFloatImage *aligned_depth;
+		std::vector<DataReader::IMUData> *relatedIMU;
+		double imgtime;
+
 		ITMView(const ITMRGBDCalib& calibration, Vector2i imgSize_rgb, Vector2i imgSize_d, bool useGPU)
 		: calib(calibration)
 		{
@@ -46,6 +53,12 @@ namespace ITMLib
 			this->depthNormal = NULL;
 			this->depthUncertainty = NULL;
 			this->depthConfidence = new ITMFloatImage(imgSize_d, true, useGPU);
+
+			this->grayimg = NULL;
+			this->relatedIMU = NULL;
+			this->imgtime = 0;
+
+			this->aligned_depth = new ITMFloatImage(imgSize_d, true, useGPU);
 		}
 
 		virtual ~ITMView(void)
@@ -58,6 +71,9 @@ namespace ITMLib
 
 			delete depthNormal;
 			delete depthUncertainty;
+
+			delete grayimg;
+			delete relatedIMU;
 		}
 
 		// Suppress the default copy constructor and assignment operator

@@ -6,6 +6,7 @@
 #include "../Trackers/Interface/ITMTracker.h"
 #include "../Utils/ITMLibSettings.h"
 #include "../../ORUtils/DatasetReader.h"
+#include "opencv2/core/core.hpp"
 #include <vector>
 /** \mainpage
     This is the API reference documentation for InfiniTAM. For a general
@@ -70,7 +71,7 @@ namespace ITMLib
 		virtual ITMTrackingState* GetTrackingState(void) = 0;
 
 		/// Process a frame with rgb and depth images and optionally a corresponding imu measurement
-        virtual ITMTrackingState::TrackingResult ProcessFrame(ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, ITMIMUMeasurement *imuMeasurement = NULL, std::vector<DataReader::IMUData> *relatedIMU = NULL, double imgtime = 0) = 0;
+        virtual ITMTrackingState::TrackingResult ProcessFrame(ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, cv::Mat *grayimg = NULL, ITMIMUMeasurement *imuMeasurement = NULL, std::vector<DataReader::IMUData> *relatedIMU = NULL, double imgtime = 0) = 0;
 
 		/// Get a result image as output
 		virtual Vector2i GetImageSize(void) const = 0;

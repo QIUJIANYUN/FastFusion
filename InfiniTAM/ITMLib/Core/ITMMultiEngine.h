@@ -14,6 +14,11 @@
 #include "../Engines/Visualisation/Interface/ITMMultiVisualisationEngine.h"
 #include "../Engines/Meshing/ITMMultiMeshingEngineFactory.h"
 
+#include "../../ROVIO/RovioTracker.h"
+
+#include "opencv2/core/core.hpp"
+
+
 #include <vector>
 
 namespace ITMLib
@@ -35,6 +40,9 @@ namespace ITMLib
 		ITMViewBuilder *viewBuilder;
 		ITMTrackingController *trackingController;
 		ITMTracker *tracker;
+
+		RovioTracker *rovioTracker;
+
 		ITMIMUCalibrator *imuCalibrator;
 		ITMDenseMapper<TVoxel, TIndex> *denseMapper;
 
@@ -58,7 +66,7 @@ namespace ITMLib
 		ITMTrackingState* GetTrackingState(void);
 
 		/// Process a frame with rgb and depth images and (optionally) a corresponding imu measurement
-		ITMTrackingState::TrackingResult ProcessFrame(ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, ITMIMUMeasurement *imuMeasurement = NULL, std::vector<DataReader::IMUData> *relatedIMU = NULL, double imgtime = 0);
+		ITMTrackingState::TrackingResult ProcessFrame(ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, cv::Mat *grayimg = NULL, ITMIMUMeasurement *imuMeasurement = NULL, std::vector<DataReader::IMUData> *relatedIMU = NULL, double imgtime = 0);
 
 		/// Get a result image as output
 		Vector2i GetImageSize(void) const;

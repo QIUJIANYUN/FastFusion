@@ -40,6 +40,9 @@ FastFusionTracker::FastFusionTracker(Vector2i imgSize, TrackerIterationType *tra
     sigma = Vector4f(68.1654461020426f, 60.6607826748643f, 0.00343068557187040f, 0.0402595570918749f);
 
     svmClassifier->SetVectors(w, b);
+
+    //roviotracker
+//    roviotracker = new RovioTracker();
 }
 
 FastFusionTracker::~FastFusionTracker(void)
@@ -239,6 +242,11 @@ void FastFusionTracker::TrackCamera(ITMTrackingState *trackingState, const ITMVi
     this->SetEvaluationData(trackingState, view);
     this->PrepareForEvaluation();
 
+//    if(trackingState->trackerResult != ITMTrackingState::TRACKING_FAILED)
+//    {
+//        InitPoseWithROVIO();
+//    }
+
     float f_old = 1e10, f_new;
     int noValidPoints_new;
     int noValidPoints_old = 0;
@@ -298,3 +306,8 @@ void FastFusionTracker::TrackCamera(ITMTrackingState *trackingState, const ITMVi
 
     this->UpdatePoseQuality(noValidPoints_old, hessian_good, f_old);
 }
+
+//void FastFusionTracker::InitPoseWithROVIO()
+//{
+//
+//}

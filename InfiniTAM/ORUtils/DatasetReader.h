@@ -8,7 +8,7 @@
 #include <vector>
 #include <string>
 #include <fstream>
-#include <eigen3/Eigen/Dense>
+//#include <eigen3/Eigen/Dense>
 
 #include "IMUdata.h"
 
@@ -19,13 +19,11 @@ namespace DataReader {
         string imgName;
     } ICell;
 
-    typedef struct loadGroundtruth {
-        double timeStamp;
-        Eigen::Vector3d position;
-        Eigen::Quaterniond rotation_Q;
-
-
-    } GT;
+//    typedef struct loadGroundtruth {
+//        double timeStamp;
+//        Eigen::Vector3d position;
+//        Eigen::Quaterniond rotation_Q;
+//    } GT;
 
     void loadImageList(const char *imagePath, std::vector<ICell> &iListData);
 
@@ -40,7 +38,7 @@ namespace DataReader {
  * @brief read groundtruth information.
  * TODO: from now on we only read position, need to read orientation as well.
  */
-    void loadGTFile(const char *imuPath, std::vector<GT> &vGTData);
+//    void loadGTFile(const char *imuPath, std::vector<GT> &vGTData);
 
 }
 

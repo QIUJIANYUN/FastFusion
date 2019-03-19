@@ -94,7 +94,7 @@ namespace DataReader {
         //return 0;
     }
 
-    void loadGTFile(const char *imuPath, std::vector<GT> &vGTData) {
+    /*void loadGTFile(const char *imuPath, std::vector<GT> &vGTData) {
         ifstream inf;
         inf.open(imuPath, ifstream::in);
         const int cnt = 7;          // 你要输出的个数
@@ -154,7 +154,7 @@ namespace DataReader {
         inf.close();
 
         //return 0;
-    }
+    }*/
 
     void synInit(std::vector<ICell> &imageList, std::vector<IMUData> &imuList, int imgIdx, int imuIdx) {
         // Find Start Idx

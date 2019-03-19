@@ -14,9 +14,14 @@ SET(targetname InputSource)
 
 INCLUDE(${PROJECT_SOURCE_DIR}/cmake/OfferInputMirroring.cmake)
 
+
+
+
 ################################
 # Specify the libraries to use #
 ################################
+
+
 
 INCLUDE(${PROJECT_SOURCE_DIR}/cmake/UseCUDA.cmake)
 INCLUDE(${PROJECT_SOURCE_DIR}/cmake/UseFFmpeg.cmake)
@@ -75,3 +80,5 @@ SOURCE_GROUP("" FILES ${sources} ${headers})
 ##########################################
 
 INCLUDE(${PROJECT_SOURCE_DIR}/cmake/SetCUDALibTarget.cmake)
+
+target_link_libraries(InputSource ${OpenCV_LIBS})

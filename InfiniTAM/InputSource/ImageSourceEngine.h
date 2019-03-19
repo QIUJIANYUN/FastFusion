@@ -7,6 +7,8 @@
 #include "../ITMLib/Objects/Camera/ITMRGBDCalib.h"
 #include "../ITMLib/Utils/ITMImageTypes.h"
 #include "../ORUtils/DatasetReader.h"
+#include "opencv2/core/core.hpp"
+#include "opencv2/highgui/highgui.hpp"
 
 namespace InputSource {
 
@@ -70,7 +72,8 @@ namespace InputSource {
 		virtual bool hasMoreImages(void) const = 0;
 
 	public:
-		double imgtime;
+		mutable double imgtime;
+		mutable cv::Mat grayimg;
 	};
 
 	class BaseImageSourceEngine : public ImageSourceEngine

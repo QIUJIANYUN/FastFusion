@@ -664,7 +664,7 @@ void UIEngine::ProcessFrame()
 	ITMTrackingState::TrackingResult trackerResult;
 	//actual processing on the mailEngine
 	if (internalSettings->useIMU) {
-	    trackerResult = mainEngine->ProcessFrame(inputRGBImage, inputRawDepthImage, NULL, &relatedIMU, imageSource->imgtime);
+	    trackerResult = mainEngine->ProcessFrame(inputRGBImage, inputRawDepthImage, &imageSource->grayimg, NULL, &relatedIMU, imageSource->imgtime);
 	}
 	else trackerResult = mainEngine->ProcessFrame(inputRGBImage, inputRawDepthImage);
 
