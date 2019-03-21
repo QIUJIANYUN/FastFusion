@@ -12,7 +12,7 @@
 
 using namespace ITMLib;
 
-//#define DEBUG_MULTISCENE
+#define DEBUG_MULTISCENE
 
 // number of nearest neighbours to find in the loop closure detection
 static const int k_loopcloseneighbours = 3;
@@ -178,7 +178,7 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 	bool primaryTrackingSuccess = false;
 	for (size_t i = 0; i < todoList.size(); ++i)
 	{
-		// - first pass of the todo list is for primary local map and ongoing relocalisation and loopclosure attempts
+		// - first pass of the to do list is for primary local map and ongoing relocalisation and loopclosure attempts
 		// - an element with id -1 marks the end of the first pass, a request to call the loop closure detection engine, and
 		//   the start of the second pass
 		// - second tracking pass will be about newly detected loop closures, relocalisations, etc.
@@ -197,6 +197,7 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 
 			//check if relocaliser has fired
 			ORUtils::SE3Pose *pose = primaryLocalMapIdx >= 0 ? mapManager->getLocalMap(primaryLocalMapIdx)->trackingState->pose_d : NULL;
+			//没有相似帧，添加为关键帧
 			bool hasAddedKeyframe = relocaliser->ProcessFrame(view->depth, pose, primaryLocalMapIdx, k_loopcloseneighbours, NN, distances, primaryTrackingSuccess);
 
 			//frame not added and tracking failed -> we need to relocalise
@@ -242,7 +243,7 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 			// actual tracking
 			ORUtils::SE3Pose oldPose(*(currentLocalMap->trackingState->pose_d));
 
-			//rovio
+			//pose init with rovio
 			if(relatedIMU != NULL)
 			{
 				float* dep = view->aligned_depth->GetData(MEMORYDEVICE_CPU);
@@ -276,7 +277,7 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 			// tracking is allowed to be poor only in the primary scenes. 
 			ITMTrackingState::TrackingResult trackingResult = currentLocalMap->trackingState->trackerResult;
 			if (mActiveDataManager->getLocalMapType(dataId) != ITMActiveMapManager::PRIMARY_LOCAL_MAP)
-				if (trackingResult == ITMTrackingState::TRACKING_POOR) trackingResult = ITMTrackingState::TRACKING_FAILED;
+				if (trackingResult == ITMTrackingState::TRACKING_POOR) trackingResult = ITMTrackingState::TRACKING_FAILED;//除了第一个子图，不允许有track poor的情况出现
 
 			// actions on tracking result for all scenes TODO: incorporate behaviour on tracking failure from settings
 			if (trackingResult != ITMTrackingState::TRACKING_GOOD) todoList[i].fusion = false;
@@ -303,7 +304,7 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 				}
 			}
 
-			mActiveDataManager->recordTrackingResult(dataId, trackingResult, primaryTrackingSuccess);
+			mActiveDataManager->recordTrackingResult(dataId, trackingResult, primaryTrackingSuccess);//TODO:作用是什么
 		}
 
 		// fusion in any subscene as long as tracking is good for the respective subscene
@@ -314,8 +315,8 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 		if (todoList[i].prepare) trackingController->Prepare(currentLocalMap->trackingState, currentLocalMap->scene, view, visualisationEngine, currentLocalMap->renderState);
 	}
 
+    //确认执行全局优化
 	mScheduleGlobalAdjustment |= mActiveDataManager->maintainActiveData();
-
 	if (mScheduleGlobalAdjustment) 
 	{
 		if (mGlobalAdjustmentEngine->updateMeasurements(*mapManager)) 
@@ -326,6 +327,7 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 			mScheduleGlobalAdjustment = false;
 		}
 	}
+    //将优化好的pose赋给各个localmap
 	mGlobalAdjustmentEngine->retrieveNewEstimates(*mapManager);
 
 	return primaryLocalMapTrackingResult;

@@ -164,6 +164,7 @@ void ITMGlobalAdjustmentEngine::wakeupSeparateThread(void)
 
 void ITMGlobalAdjustmentEngine::MultiSceneToPoseGraph(const ITMMapGraphManager & src, MiniSlamGraph::PoseGraph & dest)
 {
+	//添加图节点
 	for (int localMapId = 0; localMapId < (int)src.numLocalMaps(); ++localMapId)
 	{
 		MiniSlamGraph::GraphNodeSE3 *pose = new MiniSlamGraph::GraphNodeSE3();
@@ -175,6 +176,7 @@ void ITMGlobalAdjustmentEngine::MultiSceneToPoseGraph(const ITMMapGraphManager &
 		dest.addNode(pose);
 	}
 
+	//添加边
 	for (int localMapId = 0; localMapId < (int)src.numLocalMaps(); ++localMapId) 
 	{
 		const ConstraintList & constraints = src.getConstraints(localMapId);
