@@ -13,6 +13,8 @@ namespace ITMLib
 	public:
 		typedef enum { PRIMARY_LOCAL_MAP, NEW_LOCAL_MAP, LOOP_CLOSURE, RELOCALISATION, LOST, LOST_NEW } LocalMapActivity;
 
+		bool generateNewSubMap;
+
 	private:
 		struct ActiveDataDescriptor 
 		{

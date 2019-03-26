@@ -253,7 +253,7 @@ static ORUtils::SE3Pose estimateRelativePose(const std::vector<Matrix4f> & obser
 	static const float weightsConverged = 0.01f;
 	static const int maxIter = 10;
 	static const float inlierThresholdForFinalResult = 0.8f;
-	std::vector<float> weights(observations.size() + 1, 1.0f);
+	std::vector<float> weights(observations.size() + 1, 1.0f);//weight all 1
 	std::vector<ORUtils::SE3Pose> poses;
 
 	for (size_t i = 0; i < observations.size(); ++i) poses.push_back(ORUtils::SE3Pose(observations[i]));
@@ -288,7 +288,7 @@ static ORUtils::SE3Pose estimateRelativePose(const std::vector<Matrix4f> & obser
 			for (int j = 0; j < 6; ++j) 
 			{
 				float r = p->GetParams()[j] - params[j];
-				residual += r*r;
+				residual += r*r; //TODO: 如何分离t与r
 			}
 			residual = sqrt(residual);
 			float newweight = huber_weight(residual, huber_b);
@@ -309,7 +309,7 @@ static ORUtils::SE3Pose estimateRelativePose(const std::vector<Matrix4f> & obser
 		inlierTrafo += observations[i];
 		++inliers;
 	}
-	if (out_inlierPose) out_inlierPose->SetM(inlierTrafo / (float)MAX(inliers, 1));
+	if (out_inlierPose) out_inlierPose->SetM(inlierTrafo / (float)MAX(inliers, 1));//
 	if (out_numInliers) *out_numInliers = inliers;
 
 	return ORUtils::SE3Pose(params);
@@ -320,16 +320,19 @@ int ITMActiveMapManager::CheckSuccess_relocalisation(int dataID) const
 	// sucessfully relocalised
 	if (activeData[dataID].constraints.size() >= N_relocsuccess) return 1;
 
-	// relocalisation failed: declare as LOST
+	// relocalisation failed: declare as LOST 剩余可尝试的次数<剩余还需成功重定位的次数
 	if ((N_reloctrials - activeData[dataID].trackingAttempts) < (N_relocsuccess - (int)activeData[dataID].constraints.size())) return -1;
 
 	// keep trying
 	return 0;
 }
 
+//TODO：这里可以加速，即在没有足够的constraint时可以先不计算边； 或者直接换一种计算方式，增量的计算边，符合要求后添加
 int ITMActiveMapManager::CheckSuccess_newlink(int dataID, int primaryDataID, int *inliers, ORUtils::SE3Pose *inlierPose) const
 {
 	const ActiveDataDescriptor & link = activeData[dataID];
+
+    //TODO：这里可以加速，即在没有足够的constraint时可以先不计算边；
 
 	// take previous data from local map relations into account!
 	//ORUtils::SE3Pose previousEstimate;
@@ -356,6 +359,8 @@ int ITMActiveMapManager::CheckSuccess_newlink(int dataID, int primaryDataID, int
 	if (inliers == NULL) inliers = &inliers_local;
 	if (inlierPose == NULL) inlierPose = &inlierPose_local;
 
+	//计算各子图间的约束 relative pose, 这里用迭代的方式实现变权重，剔除outlier，但是最后将inlier用取平均的方式得到边，而不考虑weight。
+	//TODO:需要详细理解与修改，这里涉及到边的计算，非常影响姿态图优化
 	estimateRelativePose(link.constraints, previousEstimate, (float)previousEstimate_weight, inliers, inlierPose);
 
 	// accept link
@@ -404,7 +409,7 @@ bool ITMActiveMapManager::maintainActiveData(void)
 			}
 			else if (success == -1) link.type = LOST;
 		}
-
+        //试着加边，如果成功就移动primary map
 		if ((link.type == LOOP_CLOSURE) || (link.type == NEW_LOCAL_MAP))
 		{
 			ORUtils::SE3Pose inlierPose; int inliers;
@@ -427,52 +432,59 @@ bool ITMActiveMapManager::maintainActiveData(void)
 	}
 
 	std::vector<int> restartLinksToLocalMaps;
-	primaryDataIdx = -1;
-	for (int i = 0; i < (int)activeData.size(); ++i)
-	{
-		ActiveDataDescriptor & link = activeData[i];
 
-		if ((signed)i == moveToDataIdx) link.type = PRIMARY_LOCAL_MAP;
+	if(moveToDataIdx >=0)
+    {
+        primaryDataIdx = -1;
+        for (int i = 0; i < (int)activeData.size(); ++i)
+        {
+            ActiveDataDescriptor & link = activeData[i];
 
-		if ((link.type == PRIMARY_LOCAL_MAP) && (moveToDataIdx >= 0) && ((signed)i != moveToDataIdx)) 
-		{
-			link.type = LOST;
-			restartLinksToLocalMaps.push_back(link.localMapIndex);
-		}
-		
-		if ((link.type == NEW_LOCAL_MAP) && (moveToDataIdx >= 0)) link.type = LOST_NEW;
-		
-		if ((link.type == LOOP_CLOSURE) && (moveToDataIdx >= 0)) 
-		{
-			link.type = LOST;
-			restartLinksToLocalMaps.push_back(link.localMapIndex);
-		}
+            if ((signed)i == moveToDataIdx) link.type = PRIMARY_LOCAL_MAP;
 
-		if ((link.type == RELOCALISATION) && (moveToDataIdx >= 0)) link.type = LOST;
+            if ((link.type == PRIMARY_LOCAL_MAP) && ((signed)i != moveToDataIdx))
+            {
+                link.type = LOST;
+                restartLinksToLocalMaps.push_back(link.localMapIndex);
+            }
 
-		if (link.type == PRIMARY_LOCAL_MAP)
-		{
-			if (primaryDataIdx >= 0) fprintf(stderr, "OOOPS, two or more primary localMaps...\n");
-			primaryDataIdx = i;
-		}
-	}
+            if (link.type == NEW_LOCAL_MAP) link.type = LOST_NEW;
 
-	for (size_t i = 0; i < activeData.size(); )
-	{
-		ActiveDataDescriptor & link = activeData[i];
-		if (link.type == LOST_NEW)
-		{
-			// NOTE: there will only be at most one new local map at
-			// any given time and it's guaranteed to be the last
-			// in the list. Removing this new local map will therefore
-			// not require rearranging indices!
-			localMapManager->removeLocalMap(link.localMapIndex);
-			link.type = LOST;
-		}
-		if (link.type == LOST) activeData.erase(activeData.begin() + i);
-		else i++;
-	}
+            if (link.type == LOOP_CLOSURE)
+            {
+                link.type = LOST;
+                restartLinksToLocalMaps.push_back(link.localMapIndex);
+            }
 
+            if (link.type == RELOCALISATION) link.type = LOST;
+
+            if (link.type == PRIMARY_LOCAL_MAP)
+            {
+                if (primaryDataIdx >= 0) fprintf(stderr, "OOOPS, two or more primary localMaps...\n");
+                primaryDataIdx = i;
+            }
+        }
+
+    }
+
+    //剔除不需要的图
+    for (size_t i = 0; i < activeData.size(); )
+    {
+        ActiveDataDescriptor & link = activeData[i];
+        if (link.type == LOST_NEW)
+        {
+            // NOTE: there will only be at most one new local map at
+            // any given time and it's guaranteed to be the last
+            // in the list. Removing this new local map will therefore
+            // not require rearranging indices!
+            localMapManager->removeLocalMap(link.localMapIndex);
+            link.type = LOST;
+        }
+        if (link.type == LOST) activeData.erase(activeData.begin() + i);
+        else i++;
+    }
+
+    //把上一个primary map与loopclosure图加回来并链接到当前新的primary map上
 	for (std::vector<int>::const_iterator it = restartLinksToLocalMaps.begin(); it != restartLinksToLocalMaps.end(); ++it) {
 		initiateNewLink(*it, *(localMapManager->getTrackingPose(*it)), false);
 	}
@@ -487,6 +499,8 @@ bool ITMActiveMapManager::maintainActiveData(void)
 			int primaryLocalMapIdx = activeData[primaryDataIdx].localMapIndex;
 			localMapManager->setEstimatedGlobalPose(newIdx, ORUtils::SE3Pose(localMapManager->getTrackingPose(primaryLocalMapIdx)->GetM() * localMapManager->getEstimatedGlobalPose(primaryLocalMapIdx).GetM()));
 		}
+
+		generateNewSubMap = true;
 	}
 
 	return localMapGraphChanged;

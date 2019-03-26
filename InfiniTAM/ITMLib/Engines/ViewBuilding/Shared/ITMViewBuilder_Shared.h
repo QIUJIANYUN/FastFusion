@@ -27,7 +27,7 @@ _CPU_AND_GPU_CODE_ inline void convertDepthAffineToFloat(DEVICEPTR(float) *d_out
 	int locId = x + y * imgSize.x;
 
 	short depth_in = d_in[locId];
-	d_out[locId] = ((depth_in <= 0)||(depth_in > 32000)) ? -1.0f : (float)depth_in * depthCalibParams.x + depthCalibParams.y;
+	d_out[locId] = ((depth_in <= 630)||(depth_in > 3000)) ? -1.0f : (float)depth_in * depthCalibParams.x + depthCalibParams.y;
 }
 
 _CPU_AND_GPU_CODE_ inline void filterDepth(DEVICEPTR(float) *imageData_out, const CONSTPTR(float) *imageData_in, int x, int y, Vector2i imgDims)

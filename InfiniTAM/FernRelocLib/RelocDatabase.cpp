@@ -24,22 +24,27 @@ RelocDatabase::~RelocDatabase(void)
 int RelocDatabase::findMostSimilar(const char *codeFragments, int nearestNeighbours[], float distances[], int k)
 {
 	int foundNN = 0;
+	int valid_code = 0;
 	if (mTotalEntries > 0)
 	{
 		int *similarities = new int[mTotalEntries];
 		for (int i = 0; i < mTotalEntries; ++i) similarities[i] = 0;
 
+		//计算所有关键帧与该帧的相似度
 		for (int f = 0; f < mCodeLength; f++)
 		{
 			if (codeFragments[f] < 0) continue;
+
+			valid_code++;
 			const std::vector<int> *sameCode = &(mIds[f * mCodeFragmentDim + codeFragments[f]]);
 
 			for (unsigned int i = 0; i < sameCode->size(); ++i) similarities[(*sameCode)[i]]++;
 		}
 
+		//找寻最相似的k个关键帧，并按相似度最大到最小的方式排列。
 		for (int i = 0; i < mTotalEntries; ++i)
 		{
-			float distance = ((float)mCodeLength - (float)similarities[i]) / (float)mCodeLength;
+			float distance = ((float)valid_code - (float)similarities[i]) / (float)valid_code;
 
 			int j;
 			for (j = foundNN; j > 0; --j)

@@ -18,10 +18,10 @@ using namespace ITMLib;
 static const int k_loopcloseneighbours = 3;
 
 // maximum distance reported by LCD library to attempt relocalisation
-static const float F_maxdistattemptreloc = 0.05f;
+static const float F_maxdistattemptreloc = 0.00001f;
 
 // loop closure global adjustment runs on a separate thread
-static const bool separateThreadGlobalAdjustment = true;
+static const bool separateThreadGlobalAdjustment = false;
 
 template <typename TVoxel, typename TIndex>
 ITMMultiEngine<TVoxel, TIndex>::ITMMultiEngine(const ITMLibSettings *settings, const ITMRGBDCalib& calib, Vector2i imgSize_rgb, Vector2i imgSize_d)
@@ -154,6 +154,32 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 	else viewBuilder->UpdateView(&view, rgbImage, rawDepthImage, settings->useBilateralFilter, grayimg, relatedIMU, imgtime);//TODO: BUG collision of eigen and cuda
 //	else viewBuilder->UpdateView(&view, rgbImage, rawDepthImage, settings->useBilateralFilter, imuMeasurement);
 
+    //pose init with rovio
+    /*if(relatedIMU != NULL)
+    {
+        float* dep = view->aligned_depth->GetData(MEMORYDEVICE_CPU);
+        cv::Mat Dep = cv::Mat::zeros(480,640,CV_64FC1); // 没有考虑延迟
+        for(int i=0;i<480;i++){
+            int id = i*640;
+            for(int j=0;j<640;j++) {
+                int id1 = id + j;
+                if ((dep[id1]) > 0)
+                    Dep.at<double>(i, j) = (double)(dep[id1]);
+            }
+        }
+        //rovio track
+        rovioTracker->Track(*grayimg, Dep, relatedIMU, imgtime);
+
+        //set rovio pose to ICP init pose
+        Eigen::Matrix4d related_pose;
+        Matrix4f P;
+        related_pose = rovioTracker->T_rel();
+        P.m00 = (float)related_pose(0,0);P.m10 = (float)related_pose(0,1);P.m20 = (float)related_pose(0,2);P.m30 = (float)related_pose(0,3);//0,-2,1
+        P.m01 = (float)related_pose(1,0);P.m11 = (float)related_pose(1,1);P.m21 = (float)related_pose(1,2);P.m31 = (float)related_pose(1,3);
+        P.m02 = (float)related_pose(2,0);P.m12 = (float)related_pose(2,1);P.m22 = (float)related_pose(2,2);P.m32 = (float)related_pose(2,3);
+        P.m03 = (float)related_pose(3,0);P.m13 = (float)related_pose(3,1);P.m23 = (float)related_pose(3,2);P.m33 = (float)related_pose(3,3);
+    }*/
+
 	// find primary data, if available
 	int primaryDataIdx = mActiveDataManager->findPrimaryDataIdx();
 
@@ -200,7 +226,7 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 			//没有相似帧，添加为关键帧
 			bool hasAddedKeyframe = relocaliser->ProcessFrame(view->depth, pose, primaryLocalMapIdx, k_loopcloseneighbours, NN, distances, primaryTrackingSuccess);
 
-			//frame not added and tracking failed -> we need to relocalise
+			//frame not added (-> loop closure) and tracking failed -> we need to relocalise
 			if (!hasAddedKeyframe)
 			{
 				for (int j = 0; j < k_loopcloseneighbours; ++j)
@@ -243,41 +269,14 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 			// actual tracking
 			ORUtils::SE3Pose oldPose(*(currentLocalMap->trackingState->pose_d));
 
-			//pose init with rovio
-			if(relatedIMU != NULL)
-			{
-				float* dep = view->aligned_depth->GetData(MEMORYDEVICE_CPU);
-				cv::Mat Dep = cv::Mat::zeros(480,640,CV_64FC1); // 没有考虑延迟
-				for(int i=0;i<480;i++){
-					int id = i*640;
-					for(int j=0;j<640;j++) {
-						int id1 = id + j;
-						if ((dep[id1]) > 0)
-							Dep.at<double>(i, j) = (double)(dep[id1]);
-					}
-				}
-				//rovio track
-				rovioTracker->Track(*grayimg, Dep, relatedIMU, imgtime);
-
-				//set rovio pose to ICP init pose
-				Eigen::Matrix4d related_pose;
-				Matrix4f P;
-				related_pose = rovioTracker->T_rel();
-				P.m00 = (float)related_pose(0,0);P.m10 = (float)related_pose(0,1);P.m20 = (float)related_pose(0,2);P.m30 = (float)related_pose(0,3);//0,-2,1
-				P.m01 = (float)related_pose(1,0);P.m11 = (float)related_pose(1,1);P.m21 = (float)related_pose(1,2);P.m31 = (float)related_pose(1,3);
-				P.m02 = (float)related_pose(2,0);P.m12 = (float)related_pose(2,1);P.m22 = (float)related_pose(2,2);P.m32 = (float)related_pose(2,3);
-				P.m03 = (float)related_pose(3,0);P.m13 = (float)related_pose(3,1);P.m23 = (float)related_pose(3,2);P.m33 = (float)related_pose(3,3);
-				currentLocalMap->trackingState->pose_d->initM = P;
-				currentLocalMap->trackingState->pose_d->SetInitM();
-			}
-
-
+//            currentLocalMap->trackingState->pose_d->initM = P;
+//            currentLocalMap->trackingState->pose_d->SetInitM();
 			trackingController->Track(currentLocalMap->trackingState, view);
 
 			// tracking is allowed to be poor only in the primary scenes. 
 			ITMTrackingState::TrackingResult trackingResult = currentLocalMap->trackingState->trackerResult;
 			if (mActiveDataManager->getLocalMapType(dataId) != ITMActiveMapManager::PRIMARY_LOCAL_MAP)
-				if (trackingResult == ITMTrackingState::TRACKING_POOR) trackingResult = ITMTrackingState::TRACKING_FAILED;//除了第一个子图，不允许有track poor的情况出现
+				if (trackingResult == ITMTrackingState::TRACKING_POOR) trackingResult = ITMTrackingState::TRACKING_FAILED;//除了primary图，不允许有track poor的情况出现
 
 			// actions on tracking result for all scenes TODO: incorporate behaviour on tracking failure from settings
 			if (trackingResult != ITMTrackingState::TRACKING_GOOD) todoList[i].fusion = false;
@@ -295,7 +294,7 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 
 				if (trackingResult == ITMTrackingState::TRACKING_GOOD) primaryTrackingSuccess = true;
 
-				// we need to relocalise in the primary local map
+				// we need to relocalise in the primary local map  if it failed
 				else if (trackingResult == ITMTrackingState::TRACKING_FAILED)
 				{
 					primaryDataIdx = -1;
@@ -304,7 +303,8 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 				}
 			}
 
-			mActiveDataManager->recordTrackingResult(dataId, trackingResult, primaryTrackingSuccess);//TODO:作用是什么
+			//记录其他active中的submap到primary map的约束（relative pose）
+			mActiveDataManager->recordTrackingResult(dataId, trackingResult, primaryTrackingSuccess);
 		}
 
 		// fusion in any subscene as long as tracking is good for the respective subscene
@@ -315,8 +315,21 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 		if (todoList[i].prepare) trackingController->Prepare(currentLocalMap->trackingState, currentLocalMap->scene, view, visualisationEngine, currentLocalMap->renderState);
 	}
 
-    //确认执行全局优化
 	mScheduleGlobalAdjustment |= mActiveDataManager->maintainActiveData();
+
+	//给新生成的submap赋场景
+	if(mActiveDataManager->generateNewSubMap)
+    {
+	    int newSubmapIdx = (int)mapManager->numLocalMaps() - 1;
+
+		ITMLocalMap<TVoxel, TIndex> *newSubmap = mapManager->getLocalMap(newSubmapIdx);
+
+		denseMapper->ProcessFrame(view, newSubmap->trackingState, newSubmap->scene, newSubmap->renderState);
+		trackingController->Prepare(newSubmap->trackingState, newSubmap->scene, view, visualisationEngine, newSubmap->renderState);
+
+		mActiveDataManager->generateNewSubMap = false;
+    }
+
 	if (mScheduleGlobalAdjustment) 
 	{
 		if (mGlobalAdjustmentEngine->updateMeasurements(*mapManager)) 

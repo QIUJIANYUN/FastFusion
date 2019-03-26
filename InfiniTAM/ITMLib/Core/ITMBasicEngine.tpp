@@ -257,7 +257,7 @@ ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITM
     // tracking
     ORUtils::SE3Pose oldPose(*(trackingState->pose_d));
 
-
+/*
     //init pose with rovio
     if(relatedIMU != NULL)
     {
@@ -284,7 +284,7 @@ ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITM
         P.m03 = (float)related_pose(3,0);P.m13 = (float)related_pose(3,1);P.m23 = (float)related_pose(3,2);P.m33 = (float)related_pose(3,3);
         trackingState->pose_d->initM = P;
         trackingState->pose_d->SetInitM();
-    }
+    }*/
 
 	if (trackingActive) trackingController->Track(trackingState, view);
 

@@ -40,8 +40,8 @@ void FernConservatory::computeCode(const ORUtils::Image<float> *img, char *codeF
 			int locId = tester->location.x + tester->location.y * img->noDims.x;
 			float val = imgData[locId];
 
-			/*if (val <= 0.0f) codeFragments[f] = -1;
-			else*/ codeFragments[f] |= ((val < tester->threshold) ? 0 : 1) << d;
+			if (val <= 0.0f) codeFragments[f] = -1;
+			else codeFragments[f] |= ((val < tester->threshold) ? 0 : 1) << d;
 		}
 	}
 }

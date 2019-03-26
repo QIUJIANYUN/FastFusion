@@ -7,7 +7,7 @@ using namespace ITMLib;
 #include <cmath>
 
 ITMLibSettings::ITMLibSettings(void)
-:	sceneParams(0.02f, 100, 0.005f, 0.2f, 3.0f, false),
+:	sceneParams(0.02f, 100, 0.005f, 0.63f, 3.0f, false),
 	surfelSceneParams(0.5f, 0.6f, static_cast<float>(20 * M_PI / 180), 0.01f, 0.004f, 3.5f, 25.0f, 4, 1.0f, 5.0f, 20, 10000000, true, true)
 {
     useIMU = false;
@@ -38,8 +38,8 @@ ITMLibSettings::ITMLibSettings(void)
 	useBilateralFilter = true;
 
 	/// what to do on tracker failure: ignore, relocalise or stop integration - not supported in loop closure version
-	behaviourOnFailure = FAILUREMODE_RELOCALISE;
-//	behaviourOnFailure = FAILUREMODE_IGNORE;
+//	behaviourOnFailure = FAILUREMODE_RELOCALISE;
+	behaviourOnFailure = FAILUREMODE_IGNORE;
 
 	/// switch between various library modes - basic, with loop closure, etc.
 //	libMode = LIBMODE_BASIC;
