@@ -60,6 +60,9 @@ namespace ITMLib
 
 		/// Pointer for storing the current input frame
 		ITMView *view;
+
+		std::vector<cv::Mat> kfs;
+
 	public:
 		ITMView* GetView() { return view; }
 

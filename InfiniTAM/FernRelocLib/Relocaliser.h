@@ -21,6 +21,7 @@ namespace FernRelocLib
 		FernConservatory *encoding;
 		RelocDatabase *relocDatabase;
 		PoseDatabase *poseDatabase;
+
 		ORUtils::Image<ElementType> *processedImage1, *processedImage2;
 
 	public:
@@ -45,7 +46,7 @@ namespace FernRelocLib
 			delete processedImage2;
 		}
 
-		bool ProcessFrame(const ORUtils::Image<ElementType> *img, const ORUtils::SE3Pose *pose, int sceneId, int k, int nearestNeighbours[], float *distances, bool harvestKeyframes) const
+		int ProcessFrame(const ORUtils::Image<ElementType> *img, const ORUtils::SE3Pose *pose, int sceneId, int k, int nearestNeighbours[], float *distances, bool harvestKeyframes) const
 		{
 			// downsample and preprocess image => processedImage1
 			filterSubsample(img, processedImage1); // 320x240
@@ -75,12 +76,15 @@ namespace FernRelocLib
 				else if (distances[0] > keyframeHarvestingThreshold) ret = relocDatabase->addEntry(code);
 
 				if (ret >= 0) poseDatabase->storePose(ret, *pose, sceneId);
+
+
+
 			}
 
 			// cleanup and return
 			delete[] code;
 			if (releaseDistances) delete[] distances;
-			return ret >= 0;
+			return ret;
 		}
 
 		const FernRelocLib::PoseDatabase::PoseInScene & RetrievePose(int id)

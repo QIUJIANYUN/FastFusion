@@ -18,7 +18,7 @@ using namespace ITMLib;
 static const int k_loopcloseneighbours = 3;
 
 // maximum distance reported by LCD library to attempt relocalisation
-static const float F_maxdistattemptreloc = 0.00001f;
+static const float F_maxdistattemptreloc = 0.02f;//TODO: 0.05出现了假阳性LCD，可以调小这个参数，但更准确的应该是优化匹配方法
 
 // loop closure global adjustment runs on a separate thread
 static const bool separateThreadGlobalAdjustment = false;
@@ -224,10 +224,13 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 			//check if relocaliser has fired
 			ORUtils::SE3Pose *pose = primaryLocalMapIdx >= 0 ? mapManager->getLocalMap(primaryLocalMapIdx)->trackingState->pose_d : NULL;
 			//没有相似帧，添加为关键帧
-			bool hasAddedKeyframe = relocaliser->ProcessFrame(view->depth, pose, primaryLocalMapIdx, k_loopcloseneighbours, NN, distances, primaryTrackingSuccess);
+			int hasAddedKeyframe = relocaliser->ProcessFrame(view->depth, pose, primaryLocalMapIdx, k_loopcloseneighbours, NN, distances, primaryTrackingSuccess);
+
+			//store lcd image;
+			if(hasAddedKeyframe >= 0) kfs.push_back(*grayimg);
 
 			//frame not added (-> loop closure) and tracking failed -> we need to relocalise
-			if (!hasAddedKeyframe)
+			if (hasAddedKeyframe<0)
 			{
 				for (int j = 0; j < k_loopcloseneighbours; ++j)
 				{
@@ -239,6 +242,10 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 						TodoListEntry todoItem(newDataIdx, true, false, true);
 						todoItem.preprepare = true;
 						todoList.push_back(todoItem);
+
+						//show lcd image
+						cv::imshow("LCD keyframe", kfs[NN[j]]);
+						cv::waitKey(0);
 					}
 				}
 			}
