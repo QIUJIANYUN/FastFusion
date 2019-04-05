@@ -7,7 +7,7 @@ using namespace ITMLib;
 // try loop closures for this number of frames
 static const int N_linktrials = 20;
 // at least these many frames have to be tracked successfully
-static const int N_linkoverlap = 10;
+static const int N_linkoverlap = /*10*/5;
 // try relocalisations for this number of frames
 static const int N_reloctrials = 20;
 // at least these many tracking attempts have to succeed for relocalisation
@@ -212,7 +212,7 @@ void ITMActiveMapManager::recordTrackingResult(int dataID, ITMTrackingState::Tra
 	if (trackingResult == ITMTrackingState::TRACKING_GOOD)
 	{
 		if (data.type == RELOCALISATION) data.constraints.push_back(localMapManager->getTrackingPose(dataID)->GetM());
-		else if (((data.type == NEW_LOCAL_MAP) || (data.type == LOOP_CLOSURE)) && primaryTrackingSuccess)
+		else if (((data.type == NEW_LOCAL_MAP) || (data.type == LOOP_CLOSURE)) && primaryTrackingSuccess)//LC的edge计算是对的 T1P1=TnPn
 		{
 			Matrix4f Tnew_inv = localMapManager->getTrackingPose(localMapId)->GetInvM();
 			Matrix4f Told = localMapManager->getTrackingPose(primaryLocalMapID)->GetM();
@@ -256,10 +256,17 @@ static ORUtils::SE3Pose estimateRelativePose(const std::vector<Matrix4f> & obser
 	std::vector<float> weights(observations.size() + 1, 1.0f);//weight all 1
 	std::vector<ORUtils::SE3Pose> poses;
 
-	for (size_t i = 0; i < observations.size(); ++i) poses.push_back(ORUtils::SE3Pose(observations[i]));
+	//如果数量少，就提前结束
+	if(observations.size() < 10) {*out_numInliers = 0; return ORUtils::SE3Pose(0,0,0,0,0,0);}
 
+//    cout<< " previous estimated weight: " << previousEstimate_weight <<endl;
+//	cout<< " previous estimated pose: " << previousEstimate <<endl;
+
+	for (size_t i = 0; i < observations.size(); ++i) poses.push_back(ORUtils::SE3Pose(observations[i]));
 	float params[6];
-	for (int iter = 0; iter < maxIter; ++iter) 
+
+	int iter = 0;
+	for (; iter < maxIter; ++iter)
 	{
 		// estimate with fixed weights
 		float sumweight = previousEstimate_weight;
@@ -300,6 +307,10 @@ static ORUtils::SE3Pose estimateRelativePose(const std::vector<Matrix4f> & obser
 		if (avgweightchange < weightsConverged) break;
 	}
 
+	//DEBUG
+	cout<< "聚类relative pose的迭代次数： " << iter << endl;
+
+
 	int inliers = 0;
 	Matrix4f inlierTrafo;
 	inlierTrafo.setZeros();
@@ -309,7 +320,8 @@ static ORUtils::SE3Pose estimateRelativePose(const std::vector<Matrix4f> & obser
 		inlierTrafo += observations[i];
 		++inliers;
 	}
-	if (out_inlierPose) out_inlierPose->SetM(inlierTrafo / (float)MAX(inliers, 1));//
+    if (out_inlierPose) out_inlierPose->SetM(observations[0]);//
+//	if (out_inlierPose) out_inlierPose->SetM(inlierTrafo / (float)MAX(inliers, 1));//
 	if (out_numInliers) *out_numInliers = inliers;
 
 	return ORUtils::SE3Pose(params);
@@ -398,7 +410,6 @@ bool ITMActiveMapManager::maintainActiveData(void)
 	for (int i = 0; i < (int)activeData.size(); ++i)
 	{
 		ActiveDataDescriptor & link = activeData[i];
-
 		if (link.type == RELOCALISATION)
 		{
 			int success = CheckSuccess_relocalisation(i);
@@ -417,6 +428,17 @@ bool ITMActiveMapManager::maintainActiveData(void)
 			int success = CheckSuccess_newlink(i, primaryDataIdx, &inliers, &inlierPose);
 			if (success == 1)
 			{
+//				if(link.type == LOOP_CLOSURE )
+//                if(link.type == NEW_LOCAL_MAP)
+//				{
+//						int fromLocalMapIdx = activeData[primaryDataIdx].localMapIndex;
+//						int toLocalMapIdx = activeData[i].localMapIndex;
+//						ORUtils::SE3Pose Tnew_inv = localMapManager->getEstimatedGlobalPose(toLocalMapIdx);
+//						ORUtils::SE3Pose Told(localMapManager->getEstimatedGlobalPose(fromLocalMapIdx).GetInvM());
+//						Tnew_inv.MultiplyWith(&Told);
+//						inlierPose = Tnew_inv;
+//				}
+
 				AcceptNewLink(primaryDataIdx, i, inlierPose, inliers);
 				link.constraints.clear();
 				link.trackingAttempts = 0;
@@ -484,7 +506,7 @@ bool ITMActiveMapManager::maintainActiveData(void)
         else i++;
     }
 
-    //把上一个primary map与loopclosure图加回来并链接到当前新的primary map上
+    //把上一个primary map与loopclosure图加回来并链接到当前新的primary map上。 这里，上一个primary map将被重置为loop closure
 	for (std::vector<int>::const_iterator it = restartLinksToLocalMaps.begin(); it != restartLinksToLocalMaps.end(); ++it) {
 		initiateNewLink(*it, *(localMapManager->getTrackingPose(*it)), false);
 	}

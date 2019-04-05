@@ -6,6 +6,7 @@
 #include "../../../ORUtils/Cholesky.h"
 
 #include <math.h>
+#include <iostream>
 
 using namespace ITMLib;
 
@@ -217,7 +218,11 @@ void FastFusionTracker::UpdatePoseQuality(int noValidPoints_old, float *hessian_
     float finalResidual_v2 = sqrt(((float)noValidPoints_old * f_old + (float)(noValidPointsMax - noValidPoints_old) * distThresh[0]) / (float)noValidPointsMax);
     float percentageInliers_v2 = (float)noValidPoints_old / (float)noValidPointsMax;
 
-    trackingState->trackerResult = ITMTrackingState::TRACKING_FAILED;
+    std::cout << "平均能量: " << f_old << "   有效点百分比: " << percentageInliers_v2 << endl;
+
+    if(f_old > 2e-4 && percentageInliers_v2 < 0.3 ) trackingState->trackerResult = ITMTrackingState::TRACKING_POOR;
+    else trackingState->trackerResult = ITMTrackingState::TRACKING_GOOD;
+/*    trackingState->trackerResult = ITMTrackingState::TRACKING_FAILED;
     trackingState->trackerScore = finalResidual_v2;
 
     if (noValidPointsMax != 0 && noTotalPoints != 0 && det_norm_v1 > 0 && det_norm_v2 > 0) {
@@ -232,7 +237,7 @@ void FastFusionTracker::UpdatePoseQuality(int noValidPoints_old, float *hessian_
 
         if (score > 0) trackingState->trackerResult = ITMTrackingState::TRACKING_GOOD;
         else if (score > -10.0f) trackingState->trackerResult = ITMTrackingState::TRACKING_POOR;
-    }
+    }*/
 }
 
 void FastFusionTracker::TrackCamera(ITMTrackingState *trackingState, const ITMView *view)
@@ -303,7 +308,6 @@ void FastFusionTracker::TrackCamera(ITMTrackingState *trackingState, const ITMVi
             if (HasConverged(step)) break;
         }
     }
-
     this->UpdatePoseQuality(noValidPoints_old, hessian_good, f_old);
 }
 

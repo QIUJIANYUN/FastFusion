@@ -12,13 +12,13 @@
 
 using namespace ITMLib;
 
-#define DEBUG_MULTISCENE
+//#define DEBUG_MULTISCENE
 
 // number of nearest neighbours to find in the loop closure detection
 static const int k_loopcloseneighbours = 3;
 
 // maximum distance reported by LCD library to attempt relocalisation
-static const float F_maxdistattemptreloc = 0.02f;//TODO: 0.05出现了假阳性LCD，可以调小这个参数，但更准确的应该是优化匹配方法
+static const float F_maxdistattemptreloc = 0.05f;//TODO: 0.05出现了假阳性LCD，可以调小这个参数，但更准确的应该是优化匹配方法
 
 // loop closure global adjustment runs on a separate thread
 static const bool separateThreadGlobalAdjustment = false;
@@ -155,7 +155,8 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 //	else viewBuilder->UpdateView(&view, rgbImage, rawDepthImage, settings->useBilateralFilter, imuMeasurement);
 
     //pose init with rovio
-    /*if(relatedIMU != NULL)
+/*    Matrix4f P;
+    if(relatedIMU != NULL)
     {
         float* dep = view->aligned_depth->GetData(MEMORYDEVICE_CPU);
         cv::Mat Dep = cv::Mat::zeros(480,640,CV_64FC1); // 没有考虑延迟
@@ -172,7 +173,7 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 
         //set rovio pose to ICP init pose
         Eigen::Matrix4d related_pose;
-        Matrix4f P;
+
         related_pose = rovioTracker->T_rel();
         P.m00 = (float)related_pose(0,0);P.m10 = (float)related_pose(0,1);P.m20 = (float)related_pose(0,2);P.m30 = (float)related_pose(0,3);//0,-2,1
         P.m01 = (float)related_pose(1,0);P.m11 = (float)related_pose(1,1);P.m21 = (float)related_pose(1,2);P.m31 = (float)related_pose(1,3);
@@ -237,13 +238,16 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 					if (distances[j] > F_maxdistattemptreloc) continue;
 					const FernRelocLib::PoseDatabase::PoseInScene & keyframe = relocaliser->RetrievePose(NN[j]);
 					int newDataIdx = mActiveDataManager->initiateNewLink(keyframe.sceneIdx, keyframe.pose, (primaryLocalMapIdx < 0));
+                    //show lcd image
+//                    cv::imshow("LCD keyframe", kfs[NN[j]]);
+//                    cv::waitKey(0);
 					if (newDataIdx >= 0)
 					{
 						TodoListEntry todoItem(newDataIdx, true, false, true);
 						todoItem.preprepare = true;
 						todoList.push_back(todoItem);
 
-						//show lcd image
+//						show lcd image
 						cv::imshow("LCD keyframe", kfs[NN[j]]);
 						cv::waitKey(0);
 					}
