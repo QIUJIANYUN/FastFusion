@@ -312,8 +312,7 @@ DatasetReader::DatasetReader(const char *calibFilename, const char *rgbImageMask
 
 	totalFrameNo = (int)vColorList.size();
 	currentFrameNo = 20;//图像开始位置
-
-	timestampAlignment();
+	if(vIMUList.size()>0) timestampAlignment();
 
 	cachedFrameNo = currentFrameNo - 1;
 

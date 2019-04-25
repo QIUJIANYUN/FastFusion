@@ -6,7 +6,7 @@
 # Specify the target name #
 ###########################
 
-SET(targetname InfiniTAM)
+SET(targetname FastFusionV2)
 
 ################################
 # Specify the libraries to use #

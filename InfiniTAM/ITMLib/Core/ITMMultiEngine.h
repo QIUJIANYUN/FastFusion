@@ -46,7 +46,7 @@ namespace ITMLib
 		ITMIMUCalibrator *imuCalibrator;
 		ITMDenseMapper<TVoxel, TIndex> *denseMapper;
 
-		FernRelocLib::Relocaliser<float> *relocaliser;
+		FernRelocLib::Relocaliser<float, ORUtils::Vector4<unsigned char>> *relocaliser;
 
 		ITMVoxelMapGraphManager<TVoxel, TIndex> *mapManager;
 		ITMActiveMapManager *mActiveDataManager;
@@ -62,6 +62,8 @@ namespace ITMLib
 		ITMView *view;
 
 		std::vector<cv::Mat> kfs;
+
+		int trackNums;
 
 	public:
 		ITMView* GetView() { return view; }

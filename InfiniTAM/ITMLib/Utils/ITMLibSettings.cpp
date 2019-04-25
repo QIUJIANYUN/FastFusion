@@ -7,9 +7,12 @@ using namespace ITMLib;
 #include <cmath>
 
 ITMLibSettings::ITMLibSettings(void)
-:	sceneParams(0.02f, 100, 0.005f, 0.63f, 3.0f, false),
+:	sceneParams(0.02f, 100, 0.005f, 0.1f, 5.0f/*0.63f, 3.0f*/, false),
 	surfelSceneParams(0.5f, 0.6f, static_cast<float>(20 * M_PI / 180), 0.01f, 0.004f, 3.5f, 25.0f, 4, 1.0f, 5.0f, 20, 10000000, true, true)
 {
+
+    shotImageDir = "/home/zhuzunjie/Videos/TVCGvideo/rent1_slowloop2/InfiniTAM";
+
     useIMU = false;
 	// skips every other point when using the colour renderer for creating a point cloud
 	skipPoints = true;
@@ -52,11 +55,10 @@ ITMLibSettings::ITMLibSettings(void)
 //					"numiterC=20,numiterF=100,failureDec=30.0"; // 5 for normal, 20 for loop closure
 
     // FastFusion
-    trackerConfig = "type=fastfusion,levels=rrrtb,minstep=1e-4,"
-                    "outlierC=0.04,outlierF=0.04,"
+    trackerConfig = "type=fastfusion,levels=rrrtb,minstep=1e-5,"
+                    "outlierC=0.15,outlierF=0.05,"
                     "numiterC=10,numiterF=30,failureDec=30.0"; // 5 for normal, 20 for loop closure
     useIMU = true;
-//	useIMU = false;
 
 					//	 //Depth-only extended tracker:
 //	trackerConfig = "type=extended,levels=rrbb,useDepth=1,minstep=1e-4,"

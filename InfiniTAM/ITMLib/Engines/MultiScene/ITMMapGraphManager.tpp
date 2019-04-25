@@ -81,7 +81,7 @@ namespace ITMLib
 	{
 		if ((localMapId < 0) || ((unsigned)localMapId >= allData.size())) return false;
 		allData[localMapId]->trackingState->pose_d->SetFrom(&pose);
-		allData[localMapId]->trackingState->age_pointCloud = -1;
+		allData[localMapId]->trackingState->age_pointCloud = /*-1*/0; //这里从-1改为0。因为当为-1时，被变为loop closure的submap在第一帧是不跟踪的。
 		return true;
 	}
 

@@ -13,7 +13,9 @@
 
 namespace FernRelocLib
 {
-	template <typename ElementType>
+    enum RelocType {DepthOnly, ColorOnly, Both};
+
+	template <typename depthType, typename colorType>
 	class Relocaliser
 	{
 	private:
@@ -22,19 +24,38 @@ namespace FernRelocLib
 		RelocDatabase *relocDatabase;
 		PoseDatabase *poseDatabase;
 
-		ORUtils::Image<ElementType> *processedImage1, *processedImage2;
+		ORUtils::Image<depthType> *depthImage1, *depthImage2;
+		ORUtils::Image<colorType> *rgbImage1, *rgbImage2;
+
+		RelocType relocaType;
 
 	public:
-		Relocaliser(ORUtils::Vector2<int> imgSize, ORUtils::Vector2<float> range, float harvestingThreshold, int numFerns, int numDecisionsPerFern)
+		Relocaliser(ORUtils::Vector2<int> imgSize, ORUtils::Vector2<float> range, float harvestingThreshold, int numFerns, int numDecisionsPerFern, RelocType type)
 		{
 			static const int levels = 5;
-			encoding = new FernConservatory(numFerns, imgSize / (1 << levels), range, numDecisionsPerFern);
+            relocaType = type;
+			switch (type)
+			{
+                case DepthOnly:
+                    encoding = new FernConservatory(numFerns, imgSize / (1 << levels), range, ORUtils::Vector2<float>(0,0), numDecisionsPerFern);
+
+                case ColorOnly:
+                    encoding = new FernConservatory(numFerns, imgSize / (1 << levels), ORUtils::Vector2<float>(0,0), ORUtils::Vector2<float>(0,255), 3);
+
+                case Both:
+                    encoding = new FernConservatory(numFerns, imgSize / (1 << levels), range, ORUtils::Vector2<float>(0,255), numDecisionsPerFern);
+
+                default:  cout<< "choose relocation type: depth, color, both"<<endl;
+			}
+
 			relocDatabase = new RelocDatabase(numFerns, encoding->getNumCodes());
 			poseDatabase = new PoseDatabase();
 			keyframeHarvestingThreshold = harvestingThreshold;
 
-			processedImage1 = new ORUtils::Image<ElementType>(imgSize, MEMORYDEVICE_CPU);
-			processedImage2 = new ORUtils::Image<ElementType>(imgSize, MEMORYDEVICE_CPU);
+			depthImage1 = new ORUtils::Image<depthType>(imgSize, MEMORYDEVICE_CPU);
+			depthImage2 = new ORUtils::Image<depthType>(imgSize, MEMORYDEVICE_CPU);
+			rgbImage1 = new ORUtils::Image<colorType>(imgSize, MEMORYDEVICE_CPU);
+			rgbImage2 = new ORUtils::Image<colorType>(imgSize, MEMORYDEVICE_CPU);
 		}
 
 		~Relocaliser(void)
@@ -42,24 +63,90 @@ namespace FernRelocLib
 			delete encoding;
 			delete relocDatabase;
 			delete poseDatabase;
-			delete processedImage1;
-			delete processedImage2;
+			delete depthImage1;
+			delete depthImage2;
+			delete rgbImage1;
+			delete rgbImage2;
 		}
 
-		int ProcessFrame(const ORUtils::Image<ElementType> *img, const ORUtils::SE3Pose *pose, int sceneId, int k, int nearestNeighbours[], float *distances, bool harvestKeyframes) const
+        int ProcessFrame(const ORUtils::Image<depthType> *img, const ORUtils::SE3Pose *pose, int sceneId, int k, int nearestNeighbours[], float *distances, bool harvestKeyframes) const {
+            // downsample and preprocess image => processedImage1
+            filterSubsample(img, depthImage1); // 320x240
+            filterSubsample(depthImage1, depthImage2); // 160x120
+            filterSubsample(depthImage2, depthImage2); // 80x60
+            filterSubsample(depthImage1, depthImage2); // 40x30
+
+            filterGaussian(depthImage2, depthImage1, 2.5f);
+
+            // compute code
+            int codeLength = encoding->getNumFerns();
+            char *code = new char[codeLength];
+            encoding->computeCode(depthImage1, code);
+
+            // prepare outputs
+            int ret = -1;
+            bool releaseDistances = (distances == NULL);
+            if (distances == NULL) distances = new float[k];
+
+            // find similar frames
+            int similarFound = relocDatabase->findMostSimilar(code, nearestNeighbours, distances, k);
+
+            // add keyframe to database
+            if (harvestKeyframes) {
+                if (similarFound == 0) ret = relocDatabase->addEntry(code);
+                else if (distances[0] > keyframeHarvestingThreshold) ret = relocDatabase->addEntry(code);
+
+                if (ret >= 0) poseDatabase->storePose(ret, *pose, sceneId);
+
+
+            }
+
+            // cleanup and return
+            delete[] code;
+            if (releaseDistances) delete[] distances;
+            return ret;
+        }
+
+		int ProcessFrame(const ORUtils::Image<depthType> *img, const ORUtils::Image<colorType> *rgb, const ORUtils::SE3Pose *pose, int sceneId, int k, int nearestNeighbours[], float *distances, bool harvestKeyframes) const
 		{
-			// downsample and preprocess image => processedImage1
-			filterSubsample(img, processedImage1); // 320x240
-			filterSubsample(processedImage1, processedImage2); // 160x120
-			filterSubsample(processedImage2, processedImage1); // 80x60
-			filterSubsample(processedImage1, processedImage2); // 40x30
+            // compute code
+            int codeLength = encoding->getNumFerns();
+            char *code = new char[codeLength];
 
-			filterGaussian(processedImage2, processedImage1, 2.5f);
-
-			// compute code
-			int codeLength = encoding->getNumFerns();
-			char *code = new char[codeLength];
-			encoding->computeCode(processedImage1, code);
+		    switch (relocaType)
+            {
+                case DepthOnly:{
+                    // downsample and preprocess image => depthImage1
+                    filterSubsample(img, depthImage1); // 320x240
+                    filterSubsample(depthImage1, depthImage2); // 160x120
+                    filterSubsample(depthImage2, depthImage1); // 80x60
+                    filterSubsample(depthImage1, depthImage2); // 40x30
+                    filterGaussian(depthImage2, depthImage1, 2.5f);
+                    encoding->computeCode(depthImage1, code);
+                }
+                case ColorOnly:{
+                    //rgb
+                    filterSubsample(rgb, rgbImage1); // 320x240
+                    filterSubsample(rgbImage1, rgbImage2); // 160x120
+                    filterSubsample(rgbImage2, rgbImage1); // 80x60
+                    filterSubsample(rgbImage1, rgbImage2); // 40x30
+                    encoding->computeCode(rgbImage2, code);
+                }
+                case Both:{
+                    // downsample and preprocess image => depthImage1
+                    filterSubsample(img, depthImage1); // 320x240
+                    filterSubsample(depthImage1, depthImage2); // 160x120
+                    filterSubsample(depthImage2, depthImage1); // 80x60
+                    filterSubsample(depthImage1, depthImage2); // 40x30
+                    filterGaussian(depthImage2, depthImage1, 2.5f);
+                    //rgb
+                    filterSubsample(rgb, rgbImage1); // 320x240
+                    filterSubsample(rgbImage1, rgbImage2); // 160x120
+                    filterSubsample(rgbImage2, rgbImage1); // 80x60
+                    filterSubsample(rgbImage1, rgbImage2); // 40x30
+                    encoding->computeCode(depthImage1, rgbImage2, code);
+                }
+            }
 
 			// prepare outputs
 			int ret = -1;
@@ -69,17 +156,20 @@ namespace FernRelocLib
 			// find similar frames
 			int similarFound = relocDatabase->findMostSimilar(code, nearestNeighbours, distances, k);
 
+//            cout << similarFound <<endl;
+//            cout<< distances[0]<< " " << distances[1] <<endl;
+
 			// add keyframe to database
 			if (harvestKeyframes)
 			{
-				if (similarFound == 0) ret = relocDatabase->addEntry(code);
-				else if (distances[0] > keyframeHarvestingThreshold) ret = relocDatabase->addEntry(code);
+				if (similarFound == 0)  ret = relocDatabase->addEntry(code);
+                //RGB不适用于当前的收获阈值，当前的阈值对rgb来说过大，会频繁的认为是相同帧
+				else if (distances[0] > keyframeHarvestingThreshold)    ret = relocDatabase->addEntry(code);
 
 				if (ret >= 0) poseDatabase->storePose(ret, *pose, sceneId);
-
-
-
 			}
+
+//            cout<< ret <<endl;
 
 			// cleanup and return
 			delete[] code;

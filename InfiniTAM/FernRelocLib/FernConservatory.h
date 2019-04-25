@@ -18,13 +18,14 @@ namespace FernRelocLib
 	class FernConservatory
 	{
 	public:
-		FernConservatory(int numFerns, ORUtils::Vector2<int> imgSize, ORUtils::Vector2<float> bounds, int decisionsPerFern = 1);
+		FernConservatory(int numFerns, ORUtils::Vector2<int> imgSize, ORUtils::Vector2<float> depthBounds, ORUtils::Vector2<float> colorBounds, int decisionsPerFern = 1);
 		~FernConservatory(void);
 
 		// takes a (small) image, applies the binary tests in the ferns, creates
 		// the code fragments as an array
 		void computeCode(const ORUtils::Image<float> *img, char *codeFragments) const;
 		void computeCode(const ORUtils::Image< ORUtils::Vector4<unsigned char> > *img, char *codeFragments) const;
+		void computeCode(const ORUtils::Image<float> *depthImg, const ORUtils::Image< ORUtils::Vector4<unsigned char> > *colorImg, char *codeFragments) const;
 
 		void SaveToFile(const std::string &fernsFileName);
 		void LoadFromFile(const std::string &fernsFileName);

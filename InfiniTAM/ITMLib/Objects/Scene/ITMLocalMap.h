@@ -26,7 +26,7 @@ namespace ITMLib {
 			accu_poses.SetM(tmp / (float)accu_num);
 			accu_poses.Coerce();
 			//	accu_poses = (accu_poses * (float)accu_num + relative_pose)/(float)(accu_num+1);
-			accu_num++;
+//			accu_num++;
 		}
 
 		ORUtils::SE3Pose GetAccumulatedObservations(void) const { return accu_poses; }

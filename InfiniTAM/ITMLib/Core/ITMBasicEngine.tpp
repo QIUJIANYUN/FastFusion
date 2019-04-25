@@ -12,13 +12,16 @@
 #include "../../ORUtils/NVTimer.h"
 #include "../../ORUtils/FileUtils.h"
 
-//#define OUTPUT_TRAJECTORY_QUATERNIONS
+#define OUTPUT_TRAJECTORY_QUATERNIONS
 
 using namespace ITMLib;
 
 template <typename TVoxel, typename TIndex>
 ITMBasicEngine<TVoxel,TIndex>::ITMBasicEngine(const ITMLibSettings *settings, const ITMRGBDCalib& calib, Vector2i imgSize_rgb, Vector2i imgSize_d)
 {
+    string savedir = "traj_trans_only.txt";
+    trajectory = fopen(savedir.c_str(), "wb");
+
 	this->settings = settings;
 
 	if ((imgSize_d.x == -1) || (imgSize_d.y == -1)) imgSize_d = imgSize_rgb;
@@ -56,7 +59,7 @@ ITMBasicEngine<TVoxel,TIndex>::ITMBasicEngine(const ITMLibSettings *settings, co
 	view = NULL; // will be allocated by the view builder
 	
 	if (settings->behaviourOnFailure == settings->FAILUREMODE_RELOCALISE)
-		relocaliser = new FernRelocLib::Relocaliser<float>(imgSize_d, Vector2f(settings->sceneParams.viewFrustum_min, settings->sceneParams.viewFrustum_max), 0.2f, 500, 4);
+		relocaliser = new FernRelocLib::Relocaliser<float, ORUtils::Vector4<unsigned char>>(imgSize_d, Vector2f(settings->sceneParams.viewFrustum_min, settings->sceneParams.viewFrustum_max), 0.2f, 500, 4, FernRelocLib::ColorOnly);
 	else relocaliser = NULL;
 
 	kfRaycast = new ITMUChar4Image(imgSize_d, memoryType);
@@ -72,6 +75,8 @@ ITMBasicEngine<TVoxel,TIndex>::ITMBasicEngine(const ITMLibSettings *settings, co
 template <typename TVoxel, typename TIndex>
 ITMBasicEngine<TVoxel,TIndex>::~ITMBasicEngine()
 {
+    fclose(trajectory);
+
 	delete renderState_live;
 	if (renderState_freeview != NULL) delete renderState_freeview;
 
@@ -141,7 +146,7 @@ void ITMBasicEngine<TVoxel, TIndex>::LoadFromFile()
 
 	try // load relocaliser
 	{
-		FernRelocLib::Relocaliser<float> *relocaliser_temp = new FernRelocLib::Relocaliser<float>(view->depth->noDims, Vector2f(settings->sceneParams.viewFrustum_min, settings->sceneParams.viewFrustum_max), 0.2f, 500, 4);
+		FernRelocLib::Relocaliser<float, ORUtils::Vector4<unsigned char>> *relocaliser_temp = new FernRelocLib::Relocaliser<float, ORUtils::Vector4<unsigned char>>(view->depth->noDims, Vector2f(settings->sceneParams.viewFrustum_min, settings->sceneParams.viewFrustum_max), 0.2f, 500, 4, FernRelocLib::ColorOnly);
 
 		relocaliser_temp->LoadFromDirectory(relocaliserInputDirectory);
 
@@ -258,6 +263,7 @@ ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITM
     ORUtils::SE3Pose oldPose(*(trackingState->pose_d));
 
     //init pose with rovio
+	Matrix4f P;
     if(relatedIMU != NULL)
     {
         float* dep = view->aligned_depth->GetData(MEMORYDEVICE_CPU);
@@ -275,14 +281,14 @@ ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITM
 
         //set rovio pose to ICP init pose
         Eigen::Matrix4d related_pose;
-        Matrix4f P;
+
         related_pose = rovioTracker->T_rel();
         P.m00 = (float)related_pose(0,0);P.m10 = (float)related_pose(0,1);P.m20 = (float)related_pose(0,2);P.m30 = (float)related_pose(0,3);//0,-2,1
         P.m01 = (float)related_pose(1,0);P.m11 = (float)related_pose(1,1);P.m21 = (float)related_pose(1,2);P.m31 = (float)related_pose(1,3);
         P.m02 = (float)related_pose(2,0);P.m12 = (float)related_pose(2,1);P.m22 = (float)related_pose(2,2);P.m32 = (float)related_pose(2,3);
         P.m03 = (float)related_pose(3,0);P.m13 = (float)related_pose(3,1);P.m23 = (float)related_pose(3,2);P.m33 = (float)related_pose(3,3);
-        trackingState->pose_d->initM = P;
-        trackingState->pose_d->SetInitM();
+		trackingState->pose_d->initM = P;
+		trackingState->pose_d->SetInitM();
     }
 
 	if (trackingActive) trackingController->Track(trackingState, view);
@@ -369,7 +375,9 @@ ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITM
 	for (int r = 0; r < 3; ++r) for (int c = 0; c < 3; ++c)
 		R[r * 3 + c] = p->GetM().m[c * 4 + r];
 	QuaternionFromRotationMatrix(R, q);
-	fprintf(stderr, "%f %f %f %f %f %f %f\n", t[0], t[1], t[2], q[1], q[2], q[3], q[0]);
+//	fprintf(stderr, "%f %f %f\n", t[0], t[1], t[2]);
+    std::fprintf(trajectory, "%f %f %f %f %f %f %f\n", t[0], t[1], t[2], q[1], q[2], q[3], q[0]);
+
 #endif
     
     return trackerResult;

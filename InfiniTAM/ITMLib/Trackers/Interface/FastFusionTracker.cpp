@@ -220,7 +220,7 @@ void FastFusionTracker::UpdatePoseQuality(int noValidPoints_old, float *hessian_
 
     std::cout << "平均能量: " << f_old << "   有效点百分比: " << percentageInliers_v2 << endl;
 
-    if(f_old > 2e-4 && percentageInliers_v2 < 0.3 ) trackingState->trackerResult = ITMTrackingState::TRACKING_POOR;
+    if( percentageInliers_v2 < 0.2 ) trackingState->trackerResult = ITMTrackingState::TRACKING_POOR; //TODO: 当前认为icp有效匹配点数百分比小于20%时，跟踪失败，如果primary map也这样跟踪失败了会怎样？
     else trackingState->trackerResult = ITMTrackingState::TRACKING_GOOD;
 /*    trackingState->trackerResult = ITMTrackingState::TRACKING_FAILED;
     trackingState->trackerScore = finalResidual_v2;

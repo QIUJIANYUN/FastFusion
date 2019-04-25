@@ -11,15 +11,58 @@ static float random_uniform01(void)
 	return (float)rand() / (float)RAND_MAX;
 }
 
-FernConservatory::FernConservatory(int numFerns, ORUtils::Vector2<int> imgSize, ORUtils::Vector2<float> bounds, int decisionsPerFern)
+FernConservatory::FernConservatory(int numFerns, ORUtils::Vector2<int> imgSize, ORUtils::Vector2<float> depthBounds, ORUtils::Vector2<float> colorBounds, int decisionsPerFern)
 {
 	mNumFerns = numFerns;
 	mNumDecisions = decisionsPerFern;
 	mEncoders = new FernTester[mNumFerns*decisionsPerFern];
-	for (int f = 0; f < mNumFerns*decisionsPerFern; ++f) {
-		mEncoders[f].location.x = (int)floor(random_uniform01() * imgSize.x);//构造编码器by随机
-		mEncoders[f].location.y = (int)floor(random_uniform01() * imgSize.y);
-		mEncoders[f].threshold = random_uniform01() * (bounds.y - bounds.x) + bounds.x;
+
+	if(decisionsPerFern == 3)
+	{
+		//color only随机构造编码器
+		for (int f = 0; f < mNumFerns; ++f)
+		{
+			int x = (int)floor(random_uniform01() * imgSize.x);
+			int y = (int)floor(random_uniform01() * imgSize.y);
+			for (int d = 0; d < decisionsPerFern; ++d)
+			{
+				mEncoders[decisionsPerFern * f + d].location.x = x;
+				mEncoders[decisionsPerFern * f + d].location.y = y;
+				mEncoders[decisionsPerFern * f + d].threshold = random_uniform01() * (colorBounds.y - colorBounds.x) + colorBounds.x;
+			}
+		}
+	}
+	else if(colorBounds.y < 1.0f)
+	{
+		//depth only
+		for (int f = 0; f < mNumFerns; ++f)
+		{
+			int x = (int)floor(random_uniform01() * imgSize.x);
+			int y = (int)floor(random_uniform01() * imgSize.y);
+			for (int d = 0; d < decisionsPerFern; ++d)
+			{
+				mEncoders[decisionsPerFern * f + d].location.x = x;
+				mEncoders[decisionsPerFern * f + d].location.y = y;
+				mEncoders[decisionsPerFern * f + d].threshold = random_uniform01() * (depthBounds.y - depthBounds.x) + depthBounds.x;
+			}
+		}
+	}
+	else
+	{
+		//rgb-d
+		for (int f = 0; f < mNumFerns; ++f)
+		{
+			int x = (int)floor(random_uniform01() * imgSize.x);
+			int y = (int)floor(random_uniform01() * imgSize.y);
+			for (int d = 0; d < decisionsPerFern; ++d)
+			{
+				mEncoders[decisionsPerFern * f + d].location.x = x;
+				mEncoders[decisionsPerFern * f + d].location.y = y;
+
+				if(d != 3)  mEncoders[decisionsPerFern * f + d].threshold = random_uniform01() * (colorBounds.y - colorBounds.x) + colorBounds.x;
+				else mEncoders[decisionsPerFern * f + d].threshold = random_uniform01() * (depthBounds.y - depthBounds.x) + depthBounds.x;
+			}
+		}
 	}
 }
 
@@ -34,13 +77,13 @@ void FernConservatory::computeCode(const ORUtils::Image<float> *img, char *codeF
 	for (int f = 0; f < mNumFerns; ++f)
 	{
 		codeFragments[f] = 0;
+		int locId = mEncoders[f*mNumDecisions].location.x + mEncoders[f*mNumDecisions].location.y * img->noDims.x;
+        float val = imgData[locId];
+
 		for (int d = 0; d < mNumDecisions; ++d)
 		{
 			const FernTester *tester = &(mEncoders[f*mNumDecisions + d]);
-			int locId = tester->location.x + tester->location.y * img->noDims.x;
-			float val = imgData[locId];
-
-			if (val <= 0.0f) codeFragments[f] = -1;
+			if (val <= 0.01f) codeFragments[f] = -1;
 			else codeFragments[f] |= ((val < tester->threshold) ? 0 : 1) << d;
 		}
 	}
@@ -49,22 +92,50 @@ void FernConservatory::computeCode(const ORUtils::Image<float> *img, char *codeF
 void FernConservatory::computeCode(const ORUtils::Image< ORUtils::Vector4<unsigned char> > *img, char *codeFragments) const
 {
 	const ORUtils::Vector4<unsigned char> *imgData = img->GetData(MEMORYDEVICE_CPU);
-	int numDecisions = mNumDecisions / 3;
 	for (int f = 0; f < mNumFerns; ++f)
 	{
 		codeFragments[f] = 0;
-		for (int d = 0; d < numDecisions; ++d)
+        int locId = mEncoders[f*mNumDecisions].location.x + mEncoders[f*mNumDecisions].location.y * img->noDims.x;
+
+		for (int d = 0; d < mNumDecisions; ++d)
 		{
-			const FernTester *tester = &mEncoders[f * numDecisions + d];
+			const FernTester *tester = &mEncoders[f * mNumDecisions + d];
 			unsigned char tester_threshold = static_cast<unsigned char>(tester->threshold);
 
-			int locId = tester->location.x + tester->location.y * img->noDims.x;
-			for (int c = 0; c < 3; ++c)
-			{
-				unsigned char val = imgData[locId][c];
-				if (val > tester_threshold) codeFragments[f] |= 1 << ((3 * d) + c);
-			}
+            unsigned char val = imgData[locId][d];
+            codeFragments[f] |= ((val < tester_threshold) ? 0 : 1) << d;
 		}
+	}
+}
+
+void FernConservatory::computeCode(const ORUtils::Image<float> *depthImg, const ORUtils::Image< ORUtils::Vector4<unsigned char> > *colorImg, char *codeFragments) const
+{
+	const ORUtils::Vector4<unsigned char> *colorData = colorImg->GetData(MEMORYDEVICE_CPU);
+	const float *depthData = depthImg->GetData(MEMORYDEVICE_CPU);
+	for (int f = 0; f < mNumFerns; ++f)
+	{
+		codeFragments[f] = 0;
+		int locId = mEncoders[f*mNumDecisions].location.x + mEncoders[f*mNumDecisions].location.y * depthImg->noDims.x;
+
+		//d
+		const FernTester *tester = &mEncoders[f * mNumDecisions + mNumDecisions-1];
+		float val = depthData[locId];
+		if (val <= 0.01f){
+			codeFragments[f] = -1;
+			continue;
+		}
+		else codeFragments[f] |= ((val < tester->threshold) ? 0 : 1) << (mNumDecisions-1);
+
+		//rgb
+		for (int d = 0; d < mNumDecisions-1; ++d)
+		{
+			const FernTester *tester = &mEncoders[f * mNumDecisions + d];
+			unsigned char tester_threshold = static_cast<unsigned char>(tester->threshold);
+
+			unsigned char val = colorData[locId][d];
+			codeFragments[f] |= ((val < tester_threshold) ? 0 : 1) << d;
+		}
+
 	}
 }
 

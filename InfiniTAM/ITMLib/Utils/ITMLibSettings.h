@@ -5,6 +5,7 @@
 #include "ITMSceneParams.h"
 #include "ITMSurfelSceneParams.h"
 #include "../../ORUtils/MemoryDeviceType.h"
+#include <string>
 
 namespace ITMLib
 {
@@ -57,6 +58,7 @@ namespace ITMLib
 
 		const char *trackerConfig;
 		bool useIMU;
+        std::string shotImageDir;
 
 		/// Further, scene specific parameters such as voxel size
 		ITMSceneParams sceneParams;

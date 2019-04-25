@@ -44,6 +44,10 @@ namespace InfiniTAM
 			StopWatchInterface *timer_average;
 
 		private: // For UI layout
+		    int shotCounter;
+			bool recordShot;
+			ofstream timecost;
+
 			static const int NUM_WIN = 3;
 			Vector4f winReg[NUM_WIN]; // (x1, y1, x2, y2)
 			Vector2i winSize;
@@ -97,7 +101,7 @@ namespace InfiniTAM
 			void ProcessFrame();
 			
 			void GetScreenshot(ITMUChar4Image *dest) const;
-			void SaveScreenshot(const char *filename) const;
+			void SaveScreenshot();
 		};
 	}
 }

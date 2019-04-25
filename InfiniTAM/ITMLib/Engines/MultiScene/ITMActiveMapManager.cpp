@@ -4,10 +4,12 @@
 
 using namespace ITMLib;
 
+#define EDGEREFINE
+
 // try loop closures for this number of frames
 static const int N_linktrials = 20;
 // at least these many frames have to be tracked successfully
-static const int N_linkoverlap = /*10*/5;
+static const int N_linkoverlap = 10/*5*/;
 // try relocalisations for this number of frames
 static const int N_reloctrials = 20;
 // at least these many tracking attempts have to succeed for relocalisation
@@ -15,7 +17,8 @@ static const int N_relocsuccess = 10;
 // When checking "overlap with original local map", find how many of the first N
 // blocks are still visible
 static const int N_originalblocks = 1000;
-static const float F_originalBlocksThreshold = 0.2f; //0.4f
+//static const float F_originalBlocksThreshold = 0.1f;/*0.15f*/
+static const float F_originalBlocksThreshold = 0.1f;//good for rent2/fastloop8
 
 ITMActiveMapManager::ITMActiveMapManager(ITMMapGraphManager *_localMapManager)
 {
@@ -92,6 +95,7 @@ bool ITMActiveMapManager::shouldStartNewArea(void) const
 	return false;
 }
 
+//根据每个子图初始分配的1000个block 在当前视角的可视比例来判断是否移动primary map
 bool ITMActiveMapManager::shouldMovePrimaryLocalMap(int newDataId, int bestDataId, int primaryDataId) const
 {
 	int localMapIdx_primary = -1;
@@ -223,6 +227,8 @@ void ITMActiveMapManager::recordTrackingResult(int dataID, ITMTrackingState::Tra
 	}
 	else if (trackingResult == ITMTrackingState::TRACKING_FAILED)
 	{
+		if (data.type == LOOP_CLOSURE) data.type = LOST; // TODO： 这里是否要执行,即loop closure submap是否要继续跟踪；因为LOOP CLOSURE 的submap可能在之后又可以跟踪了（过去又立马回来），但是也可能不行； 如果考虑计算成本的话就不再跟踪。
+
 		if (data.type == PRIMARY_LOCAL_MAP)
 		{
 			for (size_t j = 0; j < activeData.size(); ++j)
@@ -249,6 +255,7 @@ static float huber_weight(float residual, float b)
 */
 static ORUtils::SE3Pose estimateRelativePose(const std::vector<Matrix4f> & observations, const ORUtils::SE3Pose & previousEstimate, float previousEstimate_weight, int *out_numInliers, ORUtils::SE3Pose *out_inlierPose)
 {
+
 	static const float huber_b = 0.1f;
 	static const float weightsConverged = 0.01f;
 	static const int maxIter = 10;
@@ -257,7 +264,7 @@ static ORUtils::SE3Pose estimateRelativePose(const std::vector<Matrix4f> & obser
 	std::vector<ORUtils::SE3Pose> poses;
 
 	//如果数量少，就提前结束
-	if(observations.size() < 10) {*out_numInliers = 0; return ORUtils::SE3Pose(0,0,0,0,0,0);}
+//	if(observations.size() < N_linkoverlap) {*out_numInliers = 0; return ORUtils::SE3Pose(0,0,0,0,0,0);}
 
 //    cout<< " previous estimated weight: " << previousEstimate_weight <<endl;
 //	cout<< " previous estimated pose: " << previousEstimate <<endl;
@@ -320,11 +327,12 @@ static ORUtils::SE3Pose estimateRelativePose(const std::vector<Matrix4f> & obser
 		inlierTrafo += observations[i];
 		++inliers;
 	}
-    if (out_inlierPose) out_inlierPose->SetM(observations[0]);//
-//	if (out_inlierPose) out_inlierPose->SetM(inlierTrafo / (float)MAX(inliers, 1));//
+//    if (out_inlierPose) out_inlierPose->SetM(observations[0]);
+	if (out_inlierPose) out_inlierPose->SetM(inlierTrafo / (float)MAX(inliers, 1));//
 	if (out_numInliers) *out_numInliers = inliers;
 
 	return ORUtils::SE3Pose(params);
+
 }
 
 int ITMActiveMapManager::CheckSuccess_relocalisation(int dataID) const
@@ -372,9 +380,19 @@ int ITMActiveMapManager::CheckSuccess_newlink(int dataID, int primaryDataID, int
 	if (inlierPose == NULL) inlierPose = &inlierPose_local;
 
 	//计算各子图间的约束 relative pose, 这里用迭代的方式实现变权重，剔除outlier，但是最后将inlier用取平均的方式得到边，而不考虑weight。
-	//TODO:需要详细理解与修改，这里涉及到边的计算，非常影响姿态图优化
-	estimateRelativePose(link.constraints, previousEstimate, (float)previousEstimate_weight, inliers, inlierPose);
+#ifndef EDGEREFINE
+	//TODO:Method one: direct use first constraint as edge;
+    if(link.constraints.size() > 0)
+    {
+    	if(previousEstimate_weight > 0) inlierPose->SetM(previousEstimate.GetM());
+		else inlierPose->SetM(link.constraints[0]);
 
+		*inliers = 10;
+    }
+#else
+	//Method two: refined by multiple constraints;
+	estimateRelativePose(link.constraints, previousEstimate, (float)previousEstimate_weight, inliers, inlierPose);
+#endif
 	// accept link
 	if (*inliers >= N_linkoverlap) return 1;
 
@@ -426,6 +444,7 @@ bool ITMActiveMapManager::maintainActiveData(void)
 			ORUtils::SE3Pose inlierPose; int inliers;
 
 			int success = CheckSuccess_newlink(i, primaryDataIdx, &inliers, &inlierPose);
+			cout << "inliers" << inliers << endl;
 			if (success == 1)
 			{
 //				if(link.type == LOOP_CLOSURE )
@@ -509,6 +528,7 @@ bool ITMActiveMapManager::maintainActiveData(void)
     //把上一个primary map与loopclosure图加回来并链接到当前新的primary map上。 这里，上一个primary map将被重置为loop closure
 	for (std::vector<int>::const_iterator it = restartLinksToLocalMaps.begin(); it != restartLinksToLocalMaps.end(); ++it) {
 		initiateNewLink(*it, *(localMapManager->getTrackingPose(*it)), false);
+
 	}
 
 	// NOTE: this has to be done AFTER removing any previous new local map

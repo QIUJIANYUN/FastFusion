@@ -35,6 +35,10 @@ namespace DataReader {
     void loadIMUFile(const char *imuPath, std::vector<IMUData> &vimuData) {
         ifstream inf;
         inf.open(imuPath, ifstream::in);
+        if(!inf){
+            cout<< "No IMU information" << endl;
+            return;
+        }
         const int cnt = 7;          // 你要输出的个数
 
         string line;

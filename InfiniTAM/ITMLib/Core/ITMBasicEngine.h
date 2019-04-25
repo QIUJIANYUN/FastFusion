@@ -23,6 +23,8 @@ namespace ITMLib
 	class ITMBasicEngine : public ITMMainEngine
 	{
 	private:
+        FILE *trajectory;
+
 		const ITMLibSettings *settings;
 
 		bool trackingActive, fusionActive, mainProcessingActive, trackingInitialised;
@@ -45,7 +47,7 @@ namespace ITMLib
 		ITMTracker *tracker;
 		ITMIMUCalibrator *imuCalibrator;
 
-		FernRelocLib::Relocaliser<float> *relocaliser;
+		FernRelocLib::Relocaliser<float, ORUtils::Vector4<unsigned char>> *relocaliser;
 		ITMUChar4Image *kfRaycast;
 
 		/// Pointer for storing the current input frame

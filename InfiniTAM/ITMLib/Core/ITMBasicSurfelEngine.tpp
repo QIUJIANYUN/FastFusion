@@ -48,7 +48,7 @@ ITMBasicSurfelEngine<TSurfel>::ITMBasicSurfelEngine(const ITMLibSettings *settin
 	view = NULL; // will be allocated by the view builder
 	
 	if (settings->behaviourOnFailure == settings->FAILUREMODE_RELOCALISE)
-		relocaliser = new FernRelocLib::Relocaliser<float>(imgSize_d, Vector2f(settings->sceneParams.viewFrustum_min, settings->sceneParams.viewFrustum_max), 0.2f, 500, 4);
+		relocaliser = new FernRelocLib::Relocaliser<float, ORUtils::Vector4<unsigned char>>(imgSize_d, Vector2f(settings->sceneParams.viewFrustum_min, settings->sceneParams.viewFrustum_max), 0.2f, 500, 4, FernRelocLib::ColorOnly);
 	else relocaliser = NULL;
 
 	kfRaycast = new ITMUChar4Image(imgSize_d, memoryType);
@@ -112,7 +112,7 @@ void ITMBasicSurfelEngine<TSurfel>::resetAll()
 	trackingState->Reset();
 }
 
-#ifdef OUTPUT_TRAJECTORY_QUATERNIONS
+/*#ifdef OUTPUT_TRAJECTORY_QUATERNIONS
 static int QuaternionFromRotationMatrix_variant(const double *matrix)
 {
 	int variant = 0;
@@ -137,10 +137,10 @@ static int QuaternionFromRotationMatrix_variant(const double *matrix)
 }
 
 static void QuaternionFromRotationMatrix(const double *matrix, double *q) {
-	/* taken from "James Diebel. Representing Attitude: Euler
+	*//* taken from "James Diebel. Representing Attitude: Euler
 	Angles, Quaternions, and Rotation Vectors. Technical Report, Stanford
 	University, Palo Alto, CA."
-	*/
+	*//*
 
 	// choose the numerically best variant...
 	int variant = QuaternionFromRotationMatrix_variant(matrix);
@@ -183,7 +183,7 @@ static void QuaternionFromRotationMatrix(const double *matrix, double *q) {
 
 	if (q[0] < 0.0f) for (int i = 0; i < 4; ++i) q[i] *= -1.0f;
 }
-#endif
+#endif*/
 
 template <typename TSurfel>
 ITMTrackingState::TrackingResult ITMBasicSurfelEngine<TSurfel>::ProcessFrame(ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, cv::Mat *grayimg, ITMIMUMeasurement *imuMeasurement, std::vector<DataReader::IMUData> *relatedIMU, double imgtime)

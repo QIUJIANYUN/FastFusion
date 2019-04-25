@@ -25,6 +25,10 @@
 #include "../../ORUtils/FileUtils.h"
 #include "../../InputSource/FFMPEGWriter.h"
 
+#include "opencv2/highgui.hpp"
+#include "opencv2/core/core.hpp"
+
+
 using namespace InfiniTAM::Engine;
 using namespace InputSource;
 using namespace ITMLib;
@@ -113,6 +117,8 @@ void UIEngine::glutDisplayFunction()
 
 	glutSwapBuffers();
 	uiEngine->needsRefresh = false;
+
+    if(uiEngine->recordShot)    uiEngine->SaveScreenshot();
 }
 
 void UIEngine::glutIdleFunction()
@@ -147,11 +153,11 @@ void UIEngine::glutIdleFunction()
 		//	}
 		//	break;
 	case EXIT:
-#ifdef FREEGLUT
-		glutLeaveMainLoop();
-#else
+//#ifdef FREEGLUT
+//		glutLeaveMainLoop();
+//#else
 		exit(0);
-#endif
+//#endif
 		break;
 	case PROCESS_PAUSED:
 	default:
@@ -170,7 +176,7 @@ void UIEngine::glutKeyUpFunction(unsigned char key, int x, int y)
 	switch (key)
 	{
 	case 'n':
-		printf("processing one frame ...\n");
+//		printf("processing one frame ...\n");
 		uiEngine->mainLoopAction = UIEngine::PROCESS_FRAME;
 		break;
 	case 'b':
@@ -178,7 +184,18 @@ void UIEngine::glutKeyUpFunction(unsigned char key, int x, int y)
 		uiEngine->mainLoopAction = UIEngine::PROCESS_VIDEO;
 		break;
 	case 's':
-		if (uiEngine->isRecording)
+        if (uiEngine->recordShot)
+        {
+            printf("stopped recoding shotimage ...\n");
+            uiEngine->recordShot = false;
+        }
+        else
+        {
+            printf("started recoding shotiamge ...\n");
+//            uiEngine->currentFrameNo = 0;
+            uiEngine->recordShot = true;
+        }
+		/*if (uiEngine->isRecording)
 		{
 			printf("stopped recoding disk ...\n");
 			uiEngine->isRecording = false;
@@ -188,7 +205,7 @@ void UIEngine::glutKeyUpFunction(unsigned char key, int x, int y)
 			printf("started recoding disk ...\n");
 			uiEngine->currentFrameNo = 0;
 			uiEngine->isRecording = true;
-		}
+		}*/
 		break;
 	case 'v':
 		if ((uiEngine->rgbVideoWriter != NULL) || (uiEngine->depthVideoWriter != NULL))
@@ -206,7 +223,7 @@ void UIEngine::glutKeyUpFunction(unsigned char key, int x, int y)
 			uiEngine->depthVideoWriter = new FFMPEGWriter();
 		}
 		break;
-	case 'e':
+//	case 'e':
 	case 27: // esc key
 		printf("exiting ...\n");
 		uiEngine->mainLoopAction = UIEngine::EXIT;
@@ -371,6 +388,9 @@ void UIEngine::glutMouseButtonFunction(int button, int state, int x, int y)
 	{
 		uiEngine->mouseState = 0;
 		glutSetCursor(GLUT_CURSOR_INHERIT);
+
+        cout << uiEngine->freeviewPose << endl;
+
 	}
 }
 
@@ -512,6 +532,7 @@ void UIEngine::glutMouseWheelFunction(int button, int dir, int x, int y)//TODO: 
 void UIEngine::Initialise(int & argc, char** argv, ImageSourceEngine *imageSource, IMUSourceEngine *imuSource, ITMMainEngine *mainEngine,
 	const char *outFolder, ITMLibSettings *settings)
 {
+    timecost.open("times.txt");
 	this->freeviewActive = false;
 	this->integrationActive = true;
 	this->currentColourMode = 0;
@@ -563,7 +584,7 @@ void UIEngine::Initialise(int & argc, char** argv, ImageSourceEngine *imageSourc
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE);
 	glutInitWindowSize(winSize.x, winSize.y);
-	glutCreateWindow("InfiniTAM");
+	glutCreateWindow("FastFusionV2");
 	glGenTextures(NUM_WIN, textureId);
 
 	glutDisplayFunc(UIEngine::glutDisplayFunction);
@@ -603,6 +624,37 @@ void UIEngine::Initialise(int & argc, char** argv, ImageSourceEngine *imageSourc
 	processedFrameNo = 0;
 	processedTime = 0.0f;
 
+	//shotcut setup
+    shotCounter = 0;
+    this->recordShot = false;
+    this->freeviewActive = true;
+    outImageType[0] = ITMMainEngine::InfiniTAM_IMAGE_FREECAMERA_SHADED;
+
+    //rent1/slowloop2
+    Matrix4f initFreeviewPose(0.825814962387, 0.561748147011,-0.0496866106987, 0,
+    -0.214353889227,0.394164562225,0.893692791462,0,
+    0.521614909172, -0.727374315262, 0.44591987133, 0,
+    0.027501674369,-0.260003656149,8.00000286102,1);
+
+    //rent2/slowloop4
+/*    Matrix4f initFreeviewPose(0.897114634514, -0.441361516714,-0.0196298621595, 0,
+            0.207036167383,0.380741506815, 0.901205778122,0,
+            -0.390283674002, -0.812548995018, 0.432946592569, 0,
+            -0.794941067696, -0.305516034365,7.99935054779,1);*/
+
+    freeviewPose.SetM(initFreeviewPose);
+    if (this->mainEngine->GetView() != NULL) {
+        this->freeviewIntrinsics = this->mainEngine->GetView()->calib.intrinsics_d;
+        this->outImage[0]->ChangeDims(this->mainEngine->GetView()->depth->noDims);
+    }
+    ITMMultiEngine<ITMVoxel, ITMVoxelIndex> *multiEngine = dynamic_cast<ITMMultiEngine<ITMVoxel, ITMVoxelIndex>*>(this->mainEngine);
+    if (multiEngine != NULL)
+    {
+        int idx = multiEngine->findPrimaryLocalMapIdx();
+        if (idx < 0) idx = 0;
+        multiEngine->setFreeviewLocalMapIdx(idx);
+    }
+
 #ifndef COMPILE_WITHOUT_CUDA
 	ORcudaSafeCall(cudaThreadSynchronize());
 #endif
@@ -615,11 +667,24 @@ void UIEngine::Initialise(int & argc, char** argv, ImageSourceEngine *imageSourc
 	printf("initialised.\n");
 }
 
-void UIEngine::SaveScreenshot(const char *filename) const
+void UIEngine::SaveScreenshot()
 {
-	ITMUChar4Image screenshot(getWindowSize(), true, false);
+	string saveImageID = internalSettings->shotImageDir + "/" + to_string(shotCounter) + ".png";
+
+	Vector2i windowSize = getWindowSize();
+	cv::Mat shotImage(windowSize.y, windowSize.x, CV_8UC4);
+
+	glReadPixels(0, 0, windowSize.x, windowSize.y, GL_BGRA, GL_UNSIGNED_BYTE, shotImage.data);
+
+	// >0: 沿y-轴翻转, 0: 沿x-轴翻转, <0: x、y轴同时翻转
+	cv::flip(shotImage, shotImage, 0);
+    cv::imwrite(saveImageID, shotImage);
+
+    shotCounter++;
+
+	/*ITMUChar4Image screenshot(getWindowSize(), true, false);
 	GetScreenshot(&screenshot);
-	SaveImageToFile(&screenshot, filename, true);
+	SaveImageToFile(&screenshot, filename, true);*/
 }
 
 void UIEngine::GetScreenshot(ITMUChar4Image *dest) const
@@ -629,7 +694,11 @@ void UIEngine::GetScreenshot(ITMUChar4Image *dest) const
 
 void UIEngine::ProcessFrame()
 {
-	if (!imageSource->hasMoreImages()) return;
+	if (!imageSource->hasMoreImages())
+    {
+	    this->recordShot = false;
+	    return;
+    }
 	imageSource->getImages(inputRGBImage, inputRawDepthImage);
 	if(internalSettings->useIMU) imageSource->getRelatedIMU(relatedIMU);
 	if (imuSource != NULL) {
@@ -662,11 +731,13 @@ void UIEngine::ProcessFrame()
 	sdkStartTimer(&timer_instant); sdkStartTimer(&timer_average);
 
 	ITMTrackingState::TrackingResult trackerResult;
+	cout << endl;
+	cout << "---------------" << currentFrameNo << "---------------" <<  endl;
 	//actual processing on the mailEngine
 	if (internalSettings->useIMU) {
 	    trackerResult = mainEngine->ProcessFrame(inputRGBImage, inputRawDepthImage, &imageSource->grayimg, NULL, &relatedIMU, imageSource->imgtime);
 	}
-	else trackerResult = mainEngine->ProcessFrame(inputRGBImage, inputRawDepthImage);
+	else trackerResult = mainEngine->ProcessFrame(inputRGBImage, inputRawDepthImage, &imageSource->grayimg);
 
 	trackingResult = (int)trackerResult;
 
@@ -675,8 +746,10 @@ void UIEngine::ProcessFrame()
 #endif
 	sdkStopTimer(&timer_instant); sdkStopTimer(&timer_average);
 
-	//processedTime = sdkGetTimerValue(&timer_instant);
-	processedTime = sdkGetAverageTimerValue(&timer_average);
+	processedTime = sdkGetTimerValue(&timer_instant);
+//	processedTime = sdkGetAverageTimerValue(&timer_average);
+
+    timecost << processedTime << endl;
 
 	currentFrameNo++;
 }
@@ -684,8 +757,10 @@ void UIEngine::ProcessFrame()
 void UIEngine::Run() { glutMainLoop(); }
 void UIEngine::Shutdown()
 {
+    timecost.close();
 	sdkDeleteTimer(&timer_instant);
 	sdkDeleteTimer(&timer_average);
+
 
 	if (rgbVideoWriter != NULL) delete rgbVideoWriter;
 	if (depthVideoWriter != NULL) delete depthVideoWriter;

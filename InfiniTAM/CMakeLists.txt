@@ -4,7 +4,7 @@
 
 cmake_minimum_required(VERSION 2.8)
 
-PROJECT(InfiniTAMv3)
+PROJECT(FastFusion_v2)
 
 #################################
 # Specify the CMake module path #
