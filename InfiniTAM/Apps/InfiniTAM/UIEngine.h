@@ -36,7 +36,6 @@ namespace InfiniTAM
 			int currentColourMode;
 
 			InputSource::ImageSourceEngine *imageSource;
-			InputSource::IMUSourceEngine *imuSource;
 			ITMLib::ITMLibSettings *internalSettings;
 			ITMLib::ITMMainEngine *mainEngine;
 
@@ -93,7 +92,7 @@ namespace InfiniTAM
 			bool needsRefresh;
 			ITMUChar4Image *saveImage;
 
-			void Initialise(int & argc, char** argv, InputSource::ImageSourceEngine *imageSource, InputSource::IMUSourceEngine *imuSource,
+			void Initialise(int & argc, char** argv, InputSource::ImageSourceEngine *imageSource,
 				ITMLib::ITMMainEngine *mainEngine, const char *outFolder, ITMLib::ITMLibSettings *settings);
 			void Shutdown();
 

@@ -25,10 +25,10 @@ RealSenseEngine::RealSenseEngine(const char *calibFilename, bool alignColourWith
 : BaseImageSourceEngine(calibFilename),
   colourStream(alignColourWithDepth ? rs::stream::color_aligned_to_depth : rs::stream::color)
 {
+    //初始化标定参数
 	this->calib.disparityCalib.SetStandard();
-	this->calib.trafo_rgb_to_depth = ITMExtrinsics();
+//	this->calib.trafo_rgb_to_depth = ITMExtrinsics();
 	this->calib.intrinsics_d = this->calib.intrinsics_rgb;
-
 	this->imageSize_d = requested_imageSize_d;
 	this->imageSize_rgb = requested_imageSize_rgb;
 
@@ -43,8 +43,8 @@ RealSenseEngine::RealSenseEngine(const char *calibFilename, bool alignColourWith
 
 	data->dev = data->ctx.get_device(0);
 
-	data->dev->enable_stream(rs::stream::depth, imageSize_d.x, imageSize_d.y, rs::format::z16, 60);
-	data->dev->enable_stream(rs::stream::color, imageSize_rgb.x, imageSize_rgb.y, rs::format::rgb8, 60);
+	data->dev->enable_stream(rs::stream::depth, imageSize_d.x, imageSize_d.y, rs::format::z16, 30);
+	data->dev->enable_stream(rs::stream::color, imageSize_rgb.x, imageSize_rgb.y, rs::format::rgb8, 30);
 
 	rs::intrinsics intrinsics_depth = data->dev->get_stream_intrinsics(rs::stream::depth);
 	rs::intrinsics intrinsics_rgb = data->dev->get_stream_intrinsics(colourStream);
@@ -72,7 +72,7 @@ RealSenseEngine::RealSenseEngine(const char *calibFilename, bool alignColourWith
 	extrinsics.m33 = 1.0f;
 	extrinsics.m03 = 0.0f; extrinsics.m13 = 0.0f; extrinsics.m23 = 0.0f;
 
-	this->calib.trafo_rgb_to_depth.SetFrom(extrinsics);
+//	this->calib.trafo_rgb_to_depth.SetFrom(extrinsics);
 
 	this->calib.disparityCalib.SetFrom(data->dev->get_depth_scale(), 0.0f,
 		ITMDisparityCalib::TRAFO_AFFINE);
@@ -123,6 +123,7 @@ bool RealSenseEngine::hasMoreImages(void) const { return (data!=NULL); }
 Vector2i RealSenseEngine::getDepthImageSize(void) const { return (data!=NULL)?imageSize_d:Vector2i(0,0); }
 Vector2i RealSenseEngine::getRGBImageSize(void) const { return (data!=NULL)?imageSize_rgb:Vector2i(0,0); }
 
+void RealSenseEngine::getRelatedIMU(vector<DataReader::IMUData> &relatedIMU) {}
 #else
 
 using namespace InputSource;
@@ -143,6 +144,7 @@ Vector2i RealSenseEngine::getDepthImageSize(void) const
 { return Vector2i(0,0); }
 Vector2i RealSenseEngine::getRGBImageSize(void) const
 { return Vector2i(0,0); }
-
+void RealSenseEngine::getRelatedIMU(vector<DataReader::IMUData> &relatedIMU)
+{}
 #endif
 

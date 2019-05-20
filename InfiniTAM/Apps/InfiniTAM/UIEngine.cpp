@@ -28,6 +28,7 @@
 #include "opencv2/highgui.hpp"
 #include "opencv2/core/core.hpp"
 
+static const int Windows_Size = 2;
 
 using namespace InfiniTAM::Engine;
 using namespace InputSource;
@@ -529,7 +530,7 @@ void UIEngine::glutMouseWheelFunction(int button, int dir, int x, int y)//TODO: 
 	uiEngine->needsRefresh = true;
 }
 
-void UIEngine::Initialise(int & argc, char** argv, ImageSourceEngine *imageSource, IMUSourceEngine *imuSource, ITMMainEngine *mainEngine,
+void UIEngine::Initialise(int & argc, char** argv, ImageSourceEngine *imageSource, ITMMainEngine *mainEngine,
 	const char *outFolder, ITMLibSettings *settings)
 {
     timecost.open("times.txt");
@@ -547,7 +548,6 @@ void UIEngine::Initialise(int & argc, char** argv, ImageSourceEngine *imageSourc
 
 	this->internalSettings = settings;
 	this->imageSource = imageSource;
-	this->imuSource = imuSource;
 	this->mainEngine = mainEngine;
 	{
 		size_t len = strlen(outFolder);
@@ -569,8 +569,8 @@ void UIEngine::Initialise(int & argc, char** argv, ImageSourceEngine *imageSourc
 	int textHeight = 30; // Height of text area
 	//winSize.x = (int)(1.5f * (float)MAX(imageSource->getImageSize().x, imageSource->getDepthImageSize().x));
 	//winSize.y = MAX(imageSource->getRGBImageSize().y, imageSource->getDepthImageSize().y) + textHeight;
-	winSize.x = (int)(1.5f * (float)(imageSource->getDepthImageSize().x));
-	winSize.y = imageSource->getDepthImageSize().y + textHeight;
+	winSize.x = (int)(Windows_Size * 1.5f * (float)(imageSource->getDepthImageSize().x));
+	winSize.y = Windows_Size * imageSource->getDepthImageSize().y + textHeight;
 	float h1 = textHeight / (float)winSize.y, h2 = (1.f + h1) / 2;
 	winReg[0] = Vector4f(0.0f, h1, 0.665f, 1.0f);   // Main render
 	winReg[1] = Vector4f(0.665f, h2, 1.0f, 1.0f);   // Side sub window 0
@@ -701,10 +701,6 @@ void UIEngine::ProcessFrame()
     }
 	imageSource->getImages(inputRGBImage, inputRawDepthImage);
 	if(internalSettings->useIMU) imageSource->getRelatedIMU(relatedIMU);
-	if (imuSource != NULL) {
-		if (!imuSource->hasMoreMeasurements()) return;
-		else imuSource->getMeasurement(inputIMUMeasurement);
-	}
 
 	if (isRecording)
 	{
@@ -737,7 +733,7 @@ void UIEngine::ProcessFrame()
 	if (internalSettings->useIMU) {
 	    trackerResult = mainEngine->ProcessFrame(inputRGBImage, inputRawDepthImage, &imageSource->grayimg, NULL, &relatedIMU, imageSource->imgtime);
 	}
-	else trackerResult = mainEngine->ProcessFrame(inputRGBImage, inputRawDepthImage, &imageSource->grayimg);
+	else trackerResult = mainEngine->ProcessFrame(inputRGBImage, inputRawDepthImage);
 
 	trackingResult = (int)trackerResult;
 

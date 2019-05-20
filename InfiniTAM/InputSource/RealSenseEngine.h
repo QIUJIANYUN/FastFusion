@@ -31,7 +31,7 @@ private:
 #endif
 
 public:
-	RealSenseEngine(const char *calibFilename, bool alignColourWithDepth = true,
+	RealSenseEngine(const char *calibFilename, bool alignColourWithDepth = false,
 	                Vector2i imageSize_rgb = Vector2i(640, 480), Vector2i imageSize_d = Vector2i(640, 480));
 	~RealSenseEngine();
 
@@ -39,6 +39,7 @@ public:
 	void getImages(ITMUChar4Image *rgb, ITMShortImage *rawDepth);
 	Vector2i getDepthImageSize(void) const;
 	Vector2i getRGBImageSize(void) const;
+    void getRelatedIMU(vector<DataReader::IMUData> &relatedIMU);
 };
 
 }

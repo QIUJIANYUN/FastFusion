@@ -28,7 +28,7 @@ using namespace ITMLib;
     @para arg4 the IMU images. If images are omitted, some live sources will
     be tried.
 */
-static void CreateDefaultImageSource(ImageSourceEngine* & imageSource, IMUSourceEngine* & imuSource, const char *arg1, const char *arg2, const char *arg3, const char *arg4, const char *arg5)
+static void CreateDefaultImageSource(ImageSourceEngine* & imageSource, const char *arg1 = NULL, const char *arg2 = NULL, const char *arg3 = NULL, const char *arg4 = NULL, const char *arg5 = NULL)
 {
 	const char *calibFile = arg1;
 	const char *filename1 = arg2;
@@ -40,105 +40,30 @@ static void CreateDefaultImageSource(ImageSourceEngine* & imageSource, IMUSource
 	_file.open(filename_imu,ios::in);
 	if(!_file) filename_imu = "";
 
-//	if (strcmp(calibFile, "viewer") == 0)
-//	{
-//		imageSource = new BlankImageGenerator("", Vector2i(640, 480));
-//		printf("starting in viewer mode: make sure to press n first to initiliase the views ... \n");
-//		return;
-//	}
-
 	printf("using calibration file: %s\n", calibFile);
 
 	if ((imageSource == NULL) && (filename2 != NULL))
 	{
-		printf("using rgb images: %s\nusing depth images: %s\n", filename1, filename2);
-		if (sequence == NULL)
-		{
-//			ImageMaskPathGenerator pathGenerator(filename1, filename2);
-//			imageSource = new ImageFileReader<ImageMaskPathGenerator>(calibFile, pathGenerator);
-		}
-		else if(filename_imu != NULL)
+		printf("USE file input: \n use using rgb images: %s\n using depth images: %s\n", filename1, filename2);
+		if(filename_imu != NULL)
 		{
 			printf("using zr300 data: %s\n", filename_imu);
 			imageSource = new DatasetReader(calibFile, filename1, filename2, sequence, filename_imu);
 		}
-		else
-        {
-            /*	printf("using imu data: %s\n", filename_imu);
-			imageSource = new RawFileReader(calibFile, filename1, filename2, Vector2i(320, 240), 0.5f);
-			imuSource = new IMUSourceEngine(filename_imu);*/
-        }
+	}
 
+    if (imageSource == NULL)
+	{
+		printf("trying RealSense device\n");
+		imageSource = new RealSenseEngine(calibFile);
 		if (imageSource->getDepthImageSize().x == 0)
 		{
-		    cout<<"didnt get any image"<<endl;
 			delete imageSource;
-			if (imuSource != NULL) delete imuSource;
-			imuSource = NULL;
 			imageSource = NULL;
 		}
 	}
-//
-//	if ((imageSource == NULL) && (filename1 != NULL) && (filename_imu == NULL))
-//	{
-//		imageSource = new InputSource::FFMPEGReader(calibFile, filename1, filename2);
-//		if (imageSource->getDepthImageSize().x == 0)
-//		{
-//			delete imageSource;
-//			imageSource = NULL;
-//		}
-//	}
-//
-//	if (imageSource == NULL)
-//	{
-//		// If no calibration file specified, use the factory default calibration
-//		bool useInternalCalibration = !calibFile || strlen(calibFile) == 0;
-//
-//		printf("trying OpenNI device: %s - calibration: %s\n",
-//				filename1 ? filename1 : "<OpenNI default device>",
-//				useInternalCalibration ? "internal" : "from file");
-//		imageSource = new OpenNIEngine(calibFile, filename1, useInternalCalibration);
-//		if (imageSource->getDepthImageSize().x == 0)
-//		{
-//			delete imageSource;
-//			imageSource = NULL;
-//		}
-//	}
-//
-//	if (imageSource == NULL)
-//	{
-//		printf("trying UVC device\n");
-//		imageSource = new LibUVCEngine(calibFile);
-//		if (imageSource->getDepthImageSize().x == 0)
-//		{
-//			delete imageSource;
-//			imageSource = NULL;
-//		}
-//	}
-//
-//	if (imageSource == NULL)
-//	{
-//		printf("trying RealSense device\n");
-//		imageSource = new RealSenseEngine(calibFile);
-//		if (imageSource->getDepthImageSize().x == 0)
-//		{
-//			delete imageSource;
-//			imageSource = NULL;
-//		}
-//	}
-//
-//    if (imageSource == NULL)
-//    {
-//        printf("trying RealSense device with SDK 2.X (librealsense2)\n");
-//        imageSource = new RealSense2Engine(calibFile);
-//        if (imageSource->getDepthImageSize().x == 0)
-//        {
-//            delete imageSource;
-//            imageSource = NULL;
-//        }
-//    }
-//
-//    if (imageSource == NULL)
+
+    //    if (imageSource == NULL)
 //	{
 //		printf("trying MS Kinect 2 device\n");
 //		imageSource = new Kinect2Engine(calibFile);
@@ -148,18 +73,72 @@ static void CreateDefaultImageSource(ImageSourceEngine* & imageSource, IMUSource
 //			imageSource = NULL;
 //		}
 //	}
-//
-//	if (imageSource == NULL)
-//	{
-//		printf("trying PMD PicoFlexx device\n");
-//		imageSource = new PicoFlexxEngine(calibFile);
-//		if (imageSource->getDepthImageSize().x == 0)
-//		{
-//			delete imageSource;
-//			imageSource = NULL;
-//		}
-//	}
+
+/*
+	if ((imageSource == NULL) && (filename1 != NULL) && (filename_imu == NULL))
+	{
+		imageSource = new InputSource::FFMPEGReader(calibFile, filename1, filename2);
+		if (imageSource->getDepthImageSize().x == 0)
+		{
+			delete imageSource;
+			imageSource = NULL;
+		}
+	}
+
+	if (imageSource == NULL)
+	{
+		// If no calibration file specified, use the factory default calibration
+		bool useInternalCalibration = !calibFile || strlen(calibFile) == 0;
+
+		printf("trying OpenNI device: %s - calibration: %s\n",
+				filename1 ? filename1 : "<OpenNI default device>",
+				useInternalCalibration ? "internal" : "from file");
+		imageSource = new OpenNIEngine(calibFile, filename1, useInternalCalibration);
+		if (imageSource->getDepthImageSize().x == 0)
+		{
+			delete imageSource;
+			imageSource = NULL;
+		}
+	}
+
+	if (imageSource == NULL)
+	{
+		printf("trying UVC device\n");
+		imageSource = new LibUVCEngine(calibFile);
+		if (imageSource->getDepthImageSize().x == 0)
+		{
+			delete imageSource;
+			imageSource = NULL;
+		}
+	}
+
+
+
+    if (imageSource == NULL)
+    {
+        printf("trying RealSense device with SDK 2.X (librealsense2)\n");
+        imageSource = new RealSense2Engine(calibFile);
+        if (imageSource->getDepthImageSize().x == 0)
+        {
+            delete imageSource;
+            imageSource = NULL;
+        }
+    }
+
+
+
+	if (imageSource == NULL)
+	{
+		printf("trying PMD PicoFlexx device\n");
+		imageSource = new PicoFlexxEngine(calibFile);
+		if (imageSource->getDepthImageSize().x == 0)
+		{
+			delete imageSource;
+			imageSource = NULL;
+		}
+	}*/
 }
+
 
 int main(int argc, char** argv)
 try
@@ -171,24 +150,32 @@ try
 	string sequence_dir;
 	string imu_dir;
 	int arg = 1;
+	bool online_input = false;
 
 	do{
 		if (argv[arg] != NULL) cal = argv[arg]; else break;
 		++arg;
 		if (argv[arg] != NULL) dir = argv[arg]; else break;
+		++arg;
 	} while (false);
-	if(dir != nullptr){
+
+	if(arg == 3){
 		color_dir = string(dir) + "/color";
 		depth_dir = string(dir) + "/depth";
 		sequence_dir = string(dir) + "/COLOR.txt";
 		imu_dir = string(dir) + "/IMU.txt";
+	} else{
+	    online_input = true;
 	}
 
 	printf("initialising ...\n");
 	ImageSourceEngine *imageSource = NULL;
-	IMUSourceEngine *imuSource = NULL;
 
-	CreateDefaultImageSource(imageSource, imuSource, cal, color_dir.c_str(), depth_dir.c_str(),sequence_dir.c_str(),imu_dir.c_str());
+	if(!online_input)
+	    CreateDefaultImageSource(imageSource, cal, color_dir.c_str(), depth_dir.c_str(),sequence_dir.c_str(),imu_dir.c_str());
+    else
+        CreateDefaultImageSource(imageSource, cal);
+
 	if (imageSource==NULL)
 	{
 		std::cout << "failed to open any image stream" << std::endl;
@@ -214,14 +201,13 @@ try
 		break;
 	}
 
-	UIEngine::Instance()->Initialise(argc, argv, imageSource, imuSource, mainEngine, "./Files/Out", internalSettings);
+	UIEngine::Instance()->Initialise(argc, argv, imageSource, mainEngine, "./Files/Out", internalSettings);
 	UIEngine::Instance()->Run();
 	UIEngine::Instance()->Shutdown();
 
 	delete mainEngine;
 	delete internalSettings;
 	delete imageSource;
-	if (imuSource != NULL) delete imuSource;
 	return 0;
 }
 catch(std::exception& e)
