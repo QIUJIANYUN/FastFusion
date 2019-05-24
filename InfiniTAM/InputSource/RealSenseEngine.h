@@ -8,6 +8,9 @@
 
 #include "ImageSourceEngine.h"
 
+#include "../ORUtils/IMUdata.h"
+#include <queue>
+
 #if (!defined USING_CMAKE) && (defined _MSC_VER)
 #ifdef _DEBUG
 #pragma comment(lib, "libpxcmd_d")
@@ -23,6 +26,11 @@ class RealSenseEngine : public BaseImageSourceEngine
 private:
 	class PrivateData;
 	PrivateData *data; bool dataAvailable;
+	double last_image_time;
+
+	int collect_frame_num;
+    ITMUChar4Image *inputRGBImage1, *inputRGBImage2, *inputRGBImage3;
+    ITMShortImage *inputRawDepthImage1, *inputRawDepthImage2, *inputRawDepthImage3;
 
 	Vector2i imageSize_rgb, imageSize_d;
 

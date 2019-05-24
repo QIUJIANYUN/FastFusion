@@ -58,7 +58,7 @@ ITMLibSettings::ITMLibSettings(void)
     trackerConfig = "type=fastfusion,levels=rrrtb,minstep=1e-5,"
                     "outlierC=0.15,outlierF=0.05,"
                     "numiterC=10,numiterF=30,failureDec=30.0"; // 5 for normal, 20 for loop closure
-//    useIMU = true;
+    useIMU = true;
 
 					//	 //Depth-only extended tracker:
 //	trackerConfig = "type=extended,levels=rrbb,useDepth=1,minstep=1e-4,"

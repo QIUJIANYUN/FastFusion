@@ -28,7 +28,11 @@
 #include "opencv2/highgui.hpp"
 #include "opencv2/core/core.hpp"
 
+#include "../../ORUtils/Stopwatch.h"
+
 static const int Windows_Size = 2;
+static bool Print_freeview = false;
+static bool Freeview = false;
 
 using namespace InfiniTAM::Engine;
 using namespace InputSource;
@@ -390,8 +394,11 @@ void UIEngine::glutMouseButtonFunction(int button, int state, int x, int y)
 		uiEngine->mouseState = 0;
 		glutSetCursor(GLUT_CURSOR_INHERIT);
 
-        cout << uiEngine->freeviewPose << endl;
-
+		if(Print_freeview)
+        {
+            cout << "freeviewPose:" << endl;
+            cout << uiEngine->freeviewPose << endl;
+        }
 	}
 }
 
@@ -627,8 +634,11 @@ void UIEngine::Initialise(int & argc, char** argv, ImageSourceEngine *imageSourc
 	//shotcut setup
     shotCounter = 0;
     this->recordShot = false;
-    this->freeviewActive = true;
-    outImageType[0] = ITMMainEngine::InfiniTAM_IMAGE_FREECAMERA_SHADED;
+
+    if(Freeview){
+        this->freeviewActive = true;
+        outImageType[0] = ITMMainEngine::InfiniTAM_IMAGE_FREECAMERA_SHADED;
+    }
 
     //rent1/slowloop2
     Matrix4f initFreeviewPose(0.825814962387, 0.561748147011,-0.0496866106987, 0,
@@ -699,7 +709,11 @@ void UIEngine::ProcessFrame()
 	    this->recordShot = false;
 	    return;
     }
-	imageSource->getImages(inputRGBImage, inputRawDepthImage);
+    cout << endl;
+    cout << "---------------" << currentFrameNo << "---------------" <<  endl;
+
+	imageSource->getImages(inputRGBImage, inputRawDepthImage);//cost time: 1.8ms
+	relatedIMU.clear();
 	if(internalSettings->useIMU) imageSource->getRelatedIMU(relatedIMU);
 
 	if (isRecording)
@@ -727,14 +741,14 @@ void UIEngine::ProcessFrame()
 	sdkStartTimer(&timer_instant); sdkStartTimer(&timer_average);
 
 	ITMTrackingState::TrackingResult trackerResult;
-	cout << endl;
-	cout << "---------------" << currentFrameNo << "---------------" <<  endl;
+
+    TICK("Track");
 	//actual processing on the mailEngine
 	if (internalSettings->useIMU) {
 	    trackerResult = mainEngine->ProcessFrame(inputRGBImage, inputRawDepthImage, &imageSource->grayimg, NULL, &relatedIMU, imageSource->imgtime);
 	}
 	else trackerResult = mainEngine->ProcessFrame(inputRGBImage, inputRawDepthImage);
-
+    TOCK("Track");
 	trackingResult = (int)trackerResult;
 
 #ifndef COMPILE_WITHOUT_CUDA
@@ -748,6 +762,7 @@ void UIEngine::ProcessFrame()
     timecost << processedTime << endl;
 
 	currentFrameNo++;
+    Stopwatch::getInstance().printAll();
 }
 
 void UIEngine::Run() { glutMainLoop(); }
