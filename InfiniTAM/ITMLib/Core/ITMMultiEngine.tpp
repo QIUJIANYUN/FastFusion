@@ -190,6 +190,21 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
         Eigen::Matrix4d related_pose;
 
         related_pose = rovioTracker->T_rel();
+
+        Eigen::Matrix4d c2i, d2c, d2i;
+        c2i<< 0.999835,   0.014512,   -0.010932,  0.093775,
+                -0.014281,  0.999679,   0.020920,   0.003211,
+                0.011232,   -0.020761,  0.999721,   0.001930,
+                0.000000,   0.000000,   0.000000,   1.000000;
+        d2c<<0.999980211, -0.00069964811, -0.0062491186, -0.057460,
+                0.000735448557, 0.999983311, 0.00572841847, -0.001073,
+                0.00624500681, -0.00573290139, 0.999964058, -0.002205,
+                0.000000,   0.000000,   0.000000,   1.000000;
+        d2i = c2i * d2c;
+//        cout << related_pose << endl;
+        related_pose = d2i.inverse() * related_pose * d2i;
+//        cout << related_pose << endl;
+
         P.m00 = (float)related_pose(0,0);P.m10 = (float)related_pose(0,1);P.m20 = (float)related_pose(0,2);P.m30 = (float)related_pose(0,3);//0,-2,1
         P.m01 = (float)related_pose(1,0);P.m11 = (float)related_pose(1,1);P.m21 = (float)related_pose(1,2);P.m31 = (float)related_pose(1,3);
         P.m02 = (float)related_pose(2,0);P.m12 = (float)related_pose(2,1);P.m22 = (float)related_pose(2,2);P.m32 = (float)related_pose(2,3);
@@ -492,6 +507,9 @@ void ITMMultiEngine<TVoxel, TIndex>::GetImage(ITMUChar4Image *out, GetImageType 
 		IITMVisualisationEngine::RenderImageType imageType;
 		switch (getImageType) 
 		{
+        case ITMMultiEngine::InfiniTAM_IMAGE_COLOUR_FROM_VOLUME:
+            imageType = IITMVisualisationEngine::RENDER_COLOUR_FROM_VOLUME;
+            break;
 		case ITMMultiEngine::InfiniTAM_IMAGE_COLOUR_FROM_CONFIDENCE:
 			imageType = IITMVisualisationEngine::RENDER_COLOUR_FROM_CONFIDENCE;
 			break;

@@ -32,7 +32,7 @@
 
 static const int Windows_Size = 2;
 static bool Print_freeview = false;
-static bool Freeview = false;
+static bool Freeview = true;
 
 using namespace InfiniTAM::Engine;
 using namespace InputSource;

@@ -90,9 +90,9 @@ bool ITMLib::readRGBDCalib(std::istream & src, ITMRGBDCalib & dest)
 {
 	if (!ITMLib::readIntrinsics(src, dest.intrinsics_rgb)) return false;
 	if (!ITMLib::readIntrinsics(src, dest.intrinsics_d)) return false;
-	if (!ITMLib::readExtrinsics(src, dest.trafo_rgb_to_depth)) return false;
+	if (!ITMLib::readExtrinsics(src, dest.trafo_depth_to_rgb)) return false;
 	if (!ITMLib::readDisparityCalib(src, dest.disparityCalib)) return false;
-	dest.trafo_depth_to_rgb = dest.trafo_rgb_to_depth;
+	dest.trafo_rgb_to_depth.SetFrom(dest.trafo_depth_to_rgb.calib_inv);
 	return true;
 }
 

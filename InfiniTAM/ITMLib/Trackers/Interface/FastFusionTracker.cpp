@@ -218,7 +218,7 @@ void FastFusionTracker::UpdatePoseQuality(int noValidPoints_old, float *hessian_
     float finalResidual_v2 = sqrt(((float)noValidPoints_old * f_old + (float)(noValidPointsMax - noValidPoints_old) * distThresh[0]) / (float)noValidPointsMax);
     float percentageInliers_v2 = (float)noValidPoints_old / (float)noValidPointsMax;
 
-    std::cout << "平均能量: " << f_old << "   有效点百分比: " << percentageInliers_v2 << endl;
+//    std::cout << "平均能量: " << f_old << "   有效点百分比: " << percentageInliers_v2 << endl;
 
     if( percentageInliers_v2 < 0.2 ) trackingState->trackerResult = ITMTrackingState::TRACKING_POOR; //TODO: 当前认为icp有效匹配点数百分比小于20%时，跟踪失败，如果primary map也这样跟踪失败了会怎样？
     else trackingState->trackerResult = ITMTrackingState::TRACKING_GOOD;
@@ -306,7 +306,11 @@ void FastFusionTracker::TrackCamera(ITMTrackingState *trackingState, const ITMVi
 
             // if step is small, assume it's going to decrease the error and finish
             if (HasConverged(step)) break;
+
         }
+
+
+
     }
     this->UpdatePoseQuality(noValidPoints_old, hessian_good, f_old);
 }
