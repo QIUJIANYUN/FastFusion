@@ -166,7 +166,7 @@ void ITMViewBuilder_CUDA::UpdateView(ITMView **view_ptr, ITMUChar4Image *rgbImag
 	{
 		//3 step filtering
 		//1. 双边滤波
-		this->DepthFiltering( this->floatImage,view->depth);
+		this->DepthFiltering(this->floatImage,view->depth);
 		//2. 通过距离内有效点的数量滤波
 		this->zr300_depth_denoise_point(view->depth, this->floatImage);
 		//3. 去除噪点（片）

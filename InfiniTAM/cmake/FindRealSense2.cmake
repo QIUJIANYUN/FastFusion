@@ -1,6 +1,7 @@
 
 
 SET(REALSENSE2_ROOT "/usr/local" CACHE FILEPATH "Root directory of librealsense")
+SET(REALSENSE2_LOCALROOT "${PROJECT_SOURCE_DIR}/librealsense2" CACHE FILEPATH "Root directory of local librealsense2 (if built)")
 
 FIND_PATH(RealSense2_INCLUDE_DIR librealsense2/rs.hpp HINTS "${REALSENSE2_ROOT}/include")
 FIND_LIBRARY(RealSense2_LIBRARY librealsense2 HINTS "${REALSENSE2_ROOT}/lib" "${REALSENSE2_ROOT}/lib/librealsense2.dylib")

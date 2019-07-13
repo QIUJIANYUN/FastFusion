@@ -294,6 +294,10 @@ ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITM
         0.00624500681, -0.00573290139, 0.999964058, -0.002205,
         0.000000,   0.000000,   0.000000,   1.000000;
         d2i = c2i * d2c;
+//        d2i << 1.0, 0,0, 0.0, -0.00552000012248755,
+//                0.0, 1.0, 0.0, 0.00510000018402934,
+//                0.0, 0.0, 1.0, 0.011739999987185,
+//                0.0, 0.0, 0.0, 1.0;
 //        cout << related_pose << endl;
         related_pose = d2i.inverse() * related_pose * d2i;
 //        cout << related_pose << endl;

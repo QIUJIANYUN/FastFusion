@@ -82,3 +82,7 @@ SOURCE_GROUP("" FILES ${sources} ${headers})
 INCLUDE(${PROJECT_SOURCE_DIR}/cmake/SetCUDALibTarget.cmake)
 
 target_link_libraries(InputSource ${OpenCV_LIBS})
+IF(WITH_REALSENSE2)
+    target_link_libraries(InputSource ${realsense2_LIBRARY})
+ENDIF()
+

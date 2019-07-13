@@ -63,6 +63,17 @@ static void CreateDefaultImageSource(ImageSourceEngine* & imageSource, const cha
 		}
 	}
 
+    if (imageSource == NULL)
+    {
+        printf("trying RealSense device\n");
+        imageSource = new RealSense2Engine(calibFile);
+        if (imageSource->getDepthImageSize().x == 0)
+        {
+            delete imageSource;
+            imageSource = NULL;
+        }
+    }
+
     //    if (imageSource == NULL)
 //	{
 //		printf("trying MS Kinect 2 device\n");
