@@ -6,12 +6,33 @@ using namespace ITMLib;
 #include <climits>
 #include <cmath>
 
-ITMLibSettings::ITMLibSettings(void)
-:	sceneParams(0.02f, 100, 0.01f, 0.1f, 5.0f/*0.63f, 3.0f*/, false),
-	surfelSceneParams(0.5f, 0.6f, static_cast<float>(20 * M_PI / 180), 0.01f, 0.004f, 3.5f, 25.0f, 4, 1.0f, 5.0f, 20, 10000000, true, true)
-{
+//use which sensor
+#define D435I
+//#define ZR300
+//#define AZUREKINECT
 
+ITMLibSettings::ITMLibSettings(void)
+:	sceneParams(0.02f, 100, 0.01f, 0.1f, 5.0f, false)
+{
+    //sensor parameters
+#ifdef D435I
+    rovio_filter_config = "/home/zhuzunjie/Projects/InfiniTAM/InfiniTAM/Files/D435i/rovio.info";
+    rovio_camera_config = "/home/zhuzunjie/Projects/InfiniTAM/InfiniTAM/Files/D435i/realsense.yaml";
+#endif
+#ifdef ZR300
+    rovio_filter_config = "/home/zhuzunjie/Projects/InfiniTAM/InfiniTAM/Files/realsense/rovio.info";
+    rovio_camera_config = "/home/zhuzunjie/Projects/InfiniTAM/InfiniTAM/Files/realsense/realsense.yaml";
+#endif
+#ifdef AZUREKINECT
+    rovio_filter_config = "/home/zhuzunjie/Projects/InfiniTAM/InfiniTAM/Files/realsense/rovio.info";
+    rovio_camera_config = "/home/zhuzunjie/Projects/InfiniTAM/InfiniTAM/Files/realsense/realsense.yaml";
+#endif
+
+    //save images sequence results for side by side compare
     shotImageDir = "/home/zhuzunjie/Videos/TVCGvideo/rent1_slowloop2/InfiniTAM";
+
+    saveTraj = false;
+    traj_save_dir = "traj_trans_only.txt";
 
     useIMU = false;
 	// skips every other point when using the colour renderer for creating a point cloud
@@ -34,33 +55,36 @@ ITMLibSettings::ITMLibSettings(void)
 	/// how swapping works: disabled, fully enabled (still with dragons) and delete what's not visible - not supported in loop closure version
 	swappingMode = SWAPPINGMODE_DISABLED;
 
-	/// enables or disables approximate raycast
+	/// enables or disables approximate raycast TODO usage?
 	useApproximateRaycast = false;
 
 	/// enable or disable bilateral depth filtering
-	useBilateralFilter = true;
+	useBilateralFilter = false;
 
 	/// what to do on tracker failure: ignore, relocalise or stop integration - not supported in loop closure version
-	behaviourOnFailure = FAILUREMODE_RELOCALISE;
-//	behaviourOnFailure = FAILUREMODE_IGNORE;
+//	behaviourOnFailure = FAILUREMODE_RELOCALISE; //TODO not complete
+	behaviourOnFailure = FAILUREMODE_IGNORE;
 
 	/// switch between various library modes - basic, with loop closure, etc.
 	libMode = LIBMODE_BASIC;
 //    libMode = LIBMODE_LOOPCLOSURE;
-//	libMode = LIBMODE_BASIC_SURFELS;
 
-	// Default ICP tracking
-//	trackerConfig = "type=icp,levels=rrrbb,minstep=1e-4,"
-//					"outlierC=0.01,outlierF=0.002,"
-//					"numiterC=20,numiterF=100,failureDec=30.0"; // 5 for normal, 20 for loop closure
 
     // FastFusion
     trackerConfig = "type=fastfusion,levels=rrrtb,minstep=1e-5,"
                     "outlierC=0.15,outlierF=0.05,"
                     "numiterC=10,numiterF=30,failureDec=30.0"; // 5 for normal, 20 for loop closure
-    useIMU = true;
+//    useIMU = true;
 
-					//	 //Depth-only extended tracker:
+/*    //Colour only tracking, using rendered colours
+//	trackerConfig = "type=rgb,levels=rrbb";
+
+    // Default ICP tracking
+//	trackerConfig = "type=icp,levels=rrrbb,minstep=1e-4,"
+//					"outlierC=0.01,outlierF=0.002,"
+//					"numiterC=20,numiterF=100,failureDec=30.0"; // 5 for normal, 20 for loop closure
+
+    //	 //Depth-only extended tracker:
 //	trackerConfig = "type=extended,levels=rrbb,useDepth=1,minstep=1e-4,"
 //					  "outlierSpaceC=0.1,outlierSpaceF=0.004,"
 //					  "numiterC=20,numiterF=50,tukeyCutOff=8,"
@@ -74,17 +98,8 @@ ITMLibSettings::ITMLibSettings(void)
 //					  "numiterC=20,numiterF=50,tukeyCutOff=8,"
 //					  "framesToSkip=20,framesToWeight=50,failureDec=30.0";
 
-	 //Colour only tracking, using rendered colours
-//	trackerConfig = "type=rgb,levels=rrbb";
-
 	//trackerConfig = "type=imuicp,levels=tb,minstep=1e-3,outlierC=0.01,outlierF=0.005,numiterC=4,numiterF=2";
-	//trackerConfig = "type=extendedimu,levels=ttb,minstep=5e-4,outlierSpaceC=0.1,outlierSpaceF=0.004,numiterC=20,numiterF=5,tukeyCutOff=8,framesToSkip=20,framesToWeight=50,failureDec=20.0";
-
-	// Surfel tracking
-	if(libMode == LIBMODE_BASIC_SURFELS)
-	{
-		trackerConfig = "extended,levels=rrbb,minstep=1e-4,outlierSpaceC=0.1,outlierSpaceF=0.004,numiterC=20,numiterF=20,tukeyCutOff=8,framesToSkip=0,framesToWeight=1,failureDec=20.0";
-	}
+	//trackerConfig = "type=extendedimu,levels=ttb,minstep=5e-4,outlierSpaceC=0.1,outlierSpaceF=0.004,numiterC=20,numiterF=5,tukeyCutOff=8,framesToSkip=20,framesToWeight=50,failureDec=20.0";*/
 }
 
 MemoryDeviceType ITMLibSettings::GetMemoryType() const

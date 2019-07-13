@@ -23,7 +23,10 @@ namespace ITMLib
 	class ITMBasicEngine : public ITMMainEngine
 	{
 	private:
+	    bool saveTrajectory;
         FILE *trajectory;
+
+        ITMExtrinsics depth2imu;
 
 		const ITMLibSettings *settings;
 
@@ -91,6 +94,9 @@ namespace ITMLib
 
 		/// resets the scene and the tracker
 		void resetAll();
+
+		//set init pose;
+		void setPose(Eigen::Matrix4d related_pose);
 
 		/** \brief Constructor
 			Omitting a separate image size for the depth images

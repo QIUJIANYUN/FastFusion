@@ -29,6 +29,8 @@ namespace ITMLib
 	class ITMMultiEngine : public ITMMainEngine
 	{
 	private:
+        ITMExtrinsics depth2imu;
+
 		const ITMLibSettings *settings;
 
 		ITMLowLevelEngine *lowLevelEngine;

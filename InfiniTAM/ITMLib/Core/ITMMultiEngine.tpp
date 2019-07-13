@@ -34,6 +34,8 @@ ITMMultiEngine<TVoxel, TIndex>::ITMMultiEngine(const ITMLibSettings *settings, c
 {
 	trackNums = 0;
 
+    depth2imu.SetFrom(calib.trafo_depth_to_imu.calib);
+
 	if ((imgSize_d.x == -1) || (imgSize_d.y == -1)) imgSize_d = imgSize_rgb;
 
 	this->settings = settings;
@@ -51,7 +53,7 @@ ITMMultiEngine<TVoxel, TIndex>::ITMMultiEngine(const ITMLibSettings *settings, c
 
 	denseMapper = new ITMDenseMapper<TVoxel, TIndex>(settings);
 
-	rovioTracker = new RovioTracker();
+	rovioTracker = new RovioTracker(settings->rovio_filter_config, settings->rovio_camera_config);
 
 	imuCalibrator = new ITMIMUCalibrator_iPad();
 	tracker = ITMTrackerFactory::Instance().Make(imgSize_rgb, imgSize_d, settings, lowLevelEngine, imuCalibrator, &settings->sceneParams);
@@ -188,22 +190,14 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 
         //set rovio pose to ICP init pose
         Eigen::Matrix4d related_pose;
-
         related_pose = rovioTracker->T_rel();
 
-        Eigen::Matrix4d c2i, d2c, d2i;
-        c2i<< 0.999835,   0.014512,   -0.010932,  0.093775,
-                -0.014281,  0.999679,   0.020920,   0.003211,
-                0.011232,   -0.020761,  0.999721,   0.001930,
-                0.000000,   0.000000,   0.000000,   1.000000;
-        d2c<<0.999980211, -0.00069964811, -0.0062491186, -0.057460,
-                0.000735448557, 0.999983311, 0.00572841847, -0.001073,
-                0.00624500681, -0.00573290139, 0.999964058, -0.002205,
-                0.000000,   0.000000,   0.000000,   1.000000;
-        d2i = c2i * d2c;
-//        cout << related_pose << endl;
+        Eigen::Matrix4d d2i; d2i.setIdentity();
+        d2i(0,0) = this->depth2imu.calib.m00; d2i(0,1) = this->depth2imu.calib.m10; d2i(0,2) = this->depth2imu.calib.m20; d2i(0,3) = this->depth2imu.calib.m30;
+        d2i(1,0) = this->depth2imu.calib.m01; d2i(1,1) = this->depth2imu.calib.m11; d2i(1,2) = this->depth2imu.calib.m21; d2i(1,3) = this->depth2imu.calib.m31;
+        d2i(2,0) = this->depth2imu.calib.m02; d2i(2,1) = this->depth2imu.calib.m12; d2i(2,2) = this->depth2imu.calib.m22; d2i(2,3) = this->depth2imu.calib.m32;
+
         related_pose = d2i.inverse() * related_pose * d2i;
-//        cout << related_pose << endl;
 
         P.m00 = (float)related_pose(0,0);P.m10 = (float)related_pose(0,1);P.m20 = (float)related_pose(0,2);P.m30 = (float)related_pose(0,3);//0,-2,1
         P.m01 = (float)related_pose(1,0);P.m11 = (float)related_pose(1,1);P.m21 = (float)related_pose(1,2);P.m31 = (float)related_pose(1,3);

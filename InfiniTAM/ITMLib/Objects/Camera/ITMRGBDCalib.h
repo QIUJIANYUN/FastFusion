@@ -31,6 +31,8 @@ namespace ITMLib
 		ITMExtrinsics trafo_rgb_to_depth;
 
 		ITMExtrinsics trafo_depth_to_rgb;
+
+		ITMExtrinsics trafo_depth_to_imu;
 		
 		/// Calibration information to compute depth from disparity images.
 		ITMDisparityCalib disparityCalib;

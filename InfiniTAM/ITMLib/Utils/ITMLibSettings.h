@@ -3,7 +3,6 @@
 #pragma once
 
 #include "ITMSceneParams.h"
-#include "ITMSurfelSceneParams.h"
 #include "../../ORUtils/MemoryDeviceType.h"
 #include <string>
 
@@ -36,7 +35,6 @@ namespace ITMLib
 		typedef enum
 		{
 			LIBMODE_BASIC,
-			LIBMODE_BASIC_SURFELS,
 			LIBMODE_LOOPCLOSURE
 		}LibMode;
 
@@ -58,11 +56,17 @@ namespace ITMLib
 
 		const char *trackerConfig;
 		bool useIMU;
+
         std::string shotImageDir;
+        bool saveTraj;
+        std::string traj_save_dir;
+
+        //parameters
+        std::string rovio_filter_config;
+        std::string rovio_camera_config;
 
 		/// Further, scene specific parameters such as voxel size
 		ITMSceneParams sceneParams;
-		ITMSurfelSceneParams surfelSceneParams;
 
 		ITMLibSettings(void);
 		virtual ~ITMLibSettings(void) {}

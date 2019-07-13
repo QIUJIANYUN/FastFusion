@@ -12,15 +12,18 @@
 #include "../../ORUtils/NVTimer.h"
 #include "../../ORUtils/FileUtils.h"
 
-#define OUTPUT_TRAJECTORY_QUATERNIONS
-
 using namespace ITMLib;
 
 template <typename TVoxel, typename TIndex>
 ITMBasicEngine<TVoxel,TIndex>::ITMBasicEngine(const ITMLibSettings *settings, const ITMRGBDCalib& calib, Vector2i imgSize_rgb, Vector2i imgSize_d)
 {
-    string savedir = "traj_trans_only.txt";
-    trajectory = fopen(savedir.c_str(), "wb");
+    this->saveTrajectory = settings->saveTraj;
+    if(this->saveTrajectory){
+        string savedir = settings->traj_save_dir;
+        trajectory = fopen(savedir.c_str(), "wb");
+    }
+
+    depth2imu.SetFrom(calib.trafo_depth_to_imu.calib);
 
 	this->settings = settings;
 
@@ -42,7 +45,7 @@ ITMBasicEngine<TVoxel,TIndex>::ITMBasicEngine(const ITMLibSettings *settings, co
 	denseMapper = new ITMDenseMapper<TVoxel,TIndex>(settings);
 	denseMapper->ResetScene(scene);
 
-	rovioTracker = new RovioTracker();
+	rovioTracker = new RovioTracker(settings->rovio_filter_config, settings->rovio_camera_config);
 
 	imuCalibrator = new ITMIMUCalibrator_iPad();
 	tracker = ITMTrackerFactory::Instance().Make(imgSize_rgb, imgSize_d, settings, lowLevelEngine, imuCalibrator, scene->sceneParams);
@@ -176,7 +179,6 @@ void ITMBasicEngine<TVoxel,TIndex>::resetAll()
 	trackingState->Reset();
 }
 
-#ifdef OUTPUT_TRAJECTORY_QUATERNIONS
 static int QuaternionFromRotationMatrix_variant(const double *matrix)
 {
 	int variant = 0;
@@ -247,7 +249,6 @@ static void QuaternionFromRotationMatrix(const double *matrix, double *q) {
 
 	if (q[0] < 0.0f) for (int i = 0; i < 4; ++i) q[i] *= -1.0f;
 }
-#endif
 
 template <typename TVoxel, typename TIndex>
 ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, cv::Mat *grayimg, ITMIMUMeasurement *imuMeasurement, std::vector<DataReader::IMUData> *relatedIMU, double imgtime)
@@ -263,7 +264,6 @@ ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITM
     ORUtils::SE3Pose oldPose(*(trackingState->pose_d));
 
     //init pose with rovio
-	Matrix4f P;
     if(relatedIMU != NULL)
     {
         float* dep = view->aligned_depth->GetData(MEMORYDEVICE_CPU);
@@ -278,35 +278,7 @@ ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITM
         }
         //rovio track
         rovioTracker->Track(*grayimg, Dep, relatedIMU, imgtime);
-
-        //set rovio pose to ICP init pose
-        Eigen::Matrix4d related_pose;
-
-        related_pose = rovioTracker->T_rel();
-
-        Eigen::Matrix4d c2i, d2c, d2i;
-        c2i<< 0.999835,   0.014512,   -0.010932,  0.093775,
-       -0.014281,  0.999679,   0.020920,   0.003211,
-        0.011232,   -0.020761,  0.999721,   0.001930,
-        0.000000,   0.000000,   0.000000,   1.000000;
-        d2c<<0.999980211, -0.00069964811, -0.0062491186, -0.057460,
-        0.000735448557, 0.999983311, 0.00572841847, -0.001073,
-        0.00624500681, -0.00573290139, 0.999964058, -0.002205,
-        0.000000,   0.000000,   0.000000,   1.000000;
-        d2i = c2i * d2c;
-//        d2i << 1.0, 0,0, 0.0, -0.00552000012248755,
-//                0.0, 1.0, 0.0, 0.00510000018402934,
-//                0.0, 0.0, 1.0, 0.011739999987185,
-//                0.0, 0.0, 0.0, 1.0;
-//        cout << related_pose << endl;
-        related_pose = d2i.inverse() * related_pose * d2i;
-//        cout << related_pose << endl;
-        P.m00 = (float)related_pose(0,0);P.m10 = (float)related_pose(0,1);P.m20 = (float)related_pose(0,2);P.m30 = (float)related_pose(0,3);//0,-2,1
-        P.m01 = (float)related_pose(1,0);P.m11 = (float)related_pose(1,1);P.m21 = (float)related_pose(1,2);P.m31 = (float)related_pose(1,3);
-        P.m02 = (float)related_pose(2,0);P.m12 = (float)related_pose(2,1);P.m22 = (float)related_pose(2,2);P.m32 = (float)related_pose(2,3);
-        P.m03 = (float)related_pose(3,0);P.m13 = (float)related_pose(3,1);P.m23 = (float)related_pose(3,2);P.m33 = (float)related_pose(3,3);
-		trackingState->pose_d->initM = P;
-		trackingState->pose_d->SetInitM();
+        setPose(rovioTracker->T_rel());
     }
 
 	if (trackingActive) trackingController->Track(trackingState, view);
@@ -384,19 +356,18 @@ ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITM
 	}
 	else *trackingState->pose_d = oldPose;
 
-#ifdef OUTPUT_TRAJECTORY_QUATERNIONS
-	const ORUtils::SE3Pose *p = trackingState->pose_d;
-	double t[3];
-	double R[9];
-	double q[4];
-	for (int i = 0; i < 3; ++i) t[i] = p->GetInvM().m[3 * 4 + i];
-	for (int r = 0; r < 3; ++r) for (int c = 0; c < 3; ++c)
-		R[r * 3 + c] = p->GetM().m[c * 4 + r];
-	QuaternionFromRotationMatrix(R, q);
-//	fprintf(stderr, "%f %f %f\n", t[0], t[1], t[2]);
-    std::fprintf(trajectory, "%f %f %f %f %f %f %f\n", t[0], t[1], t[2], q[1], q[2], q[3], q[0]);
-
-#endif
+    if(this->saveTrajectory) {
+        const ORUtils::SE3Pose *p = trackingState->pose_d;
+        double t[3];
+        double R[9];
+        double q[4];
+        for (int i = 0; i < 3; ++i) t[i] = p->GetInvM().m[3 * 4 + i];
+        for (int r = 0; r < 3; ++r)
+            for (int c = 0; c < 3; ++c)
+                R[r * 3 + c] = p->GetM().m[c * 4 + r];
+        QuaternionFromRotationMatrix(R, q);
+        std::fprintf(trajectory, "%f %f %f %f %f %f %f\n", t[0], t[1], t[2], q[1], q[2], q[3], q[0]);
+    }
     
     return trackerResult;
 }
@@ -513,3 +484,21 @@ void ITMBasicEngine<TVoxel,TIndex>::turnOnMainProcessing() { mainProcessingActiv
 
 template <typename TVoxel, typename TIndex>
 void ITMBasicEngine<TVoxel,TIndex>::turnOffMainProcessing() { mainProcessingActive = false; }
+
+template <typename TVoxel, typename TIndex>
+void ITMBasicEngine<TVoxel,TIndex>::setPose(Eigen::Matrix4d related_pose)
+{
+    Eigen::Matrix4d d2i; d2i.setIdentity();
+    d2i(0,0) = this->depth2imu.calib.m00; d2i(0,1) = this->depth2imu.calib.m10; d2i(0,2) = this->depth2imu.calib.m20; d2i(0,3) = this->depth2imu.calib.m30;
+    d2i(1,0) = this->depth2imu.calib.m01; d2i(1,1) = this->depth2imu.calib.m11; d2i(1,2) = this->depth2imu.calib.m21; d2i(1,3) = this->depth2imu.calib.m31;
+    d2i(2,0) = this->depth2imu.calib.m02; d2i(2,1) = this->depth2imu.calib.m12; d2i(2,2) = this->depth2imu.calib.m22; d2i(2,3) = this->depth2imu.calib.m32;
+
+    related_pose = d2i.inverse() * related_pose * d2i;
+    Matrix4f P;
+    P.m00 = (float)related_pose(0,0);P.m10 = (float)related_pose(0,1);P.m20 = (float)related_pose(0,2);P.m30 = (float)related_pose(0,3);
+    P.m01 = (float)related_pose(1,0);P.m11 = (float)related_pose(1,1);P.m21 = (float)related_pose(1,2);P.m31 = (float)related_pose(1,3);
+    P.m02 = (float)related_pose(2,0);P.m12 = (float)related_pose(2,1);P.m22 = (float)related_pose(2,2);P.m32 = (float)related_pose(2,3);
+    P.m03 = (float)related_pose(3,0);P.m13 = (float)related_pose(3,1);P.m23 = (float)related_pose(3,2);P.m33 = (float)related_pose(3,3);
+    trackingState->pose_d->initM = P;
+    trackingState->pose_d->SetInitM();
+}
