@@ -23,6 +23,11 @@ ITMBasicEngine<TVoxel,TIndex>::ITMBasicEngine(const ITMLibSettings *settings, co
         trajectory = fopen(savedir.c_str(), "wb");
     }
 
+    minDistAddKeyframe = settings->F_MinDistAddKeyframe;
+    numFerns = settings->numFerns;
+    numDecisionsPerFern = settings->numDecisionsPerFern;
+    relocType = settings->relocType;
+
     depth2imu.SetFrom(calib.trafo_depth_to_imu.calib);
 
 	this->settings = settings;
@@ -62,7 +67,7 @@ ITMBasicEngine<TVoxel,TIndex>::ITMBasicEngine(const ITMLibSettings *settings, co
 	view = NULL; // will be allocated by the view builder
 	
 	if (settings->behaviourOnFailure == settings->FAILUREMODE_RELOCALISE)
-		relocaliser = new FernRelocLib::Relocaliser<float, ORUtils::Vector4<unsigned char>>(imgSize_d, Vector2f(settings->sceneParams.viewFrustum_min, settings->sceneParams.viewFrustum_max), 0.2f, 500, 4, FernRelocLib::ColorOnly);
+		relocaliser = new FernRelocLib::Relocaliser<float, ORUtils::Vector4<unsigned char>>(imgSize_d, Vector2f(settings->sceneParams.viewFrustum_min, settings->sceneParams.viewFrustum_max), minDistAddKeyframe, numFerns, numDecisionsPerFern, relocType);
 	else relocaliser = NULL;
 
 	kfRaycast = new ITMUChar4Image(imgSize_d, memoryType);
@@ -149,7 +154,7 @@ void ITMBasicEngine<TVoxel, TIndex>::LoadFromFile()
 
 	try // load relocaliser
 	{
-		FernRelocLib::Relocaliser<float, ORUtils::Vector4<unsigned char>> *relocaliser_temp = new FernRelocLib::Relocaliser<float, ORUtils::Vector4<unsigned char>>(view->depth->noDims, Vector2f(settings->sceneParams.viewFrustum_min, settings->sceneParams.viewFrustum_max), 0.2f, 500, 4, FernRelocLib::ColorOnly);
+		FernRelocLib::Relocaliser<float, ORUtils::Vector4<unsigned char>> *relocaliser_temp = new FernRelocLib::Relocaliser<float, ORUtils::Vector4<unsigned char>>(view->depth->noDims, Vector2f(settings->sceneParams.viewFrustum_min, settings->sceneParams.viewFrustum_max), minDistAddKeyframe, numFerns, numDecisionsPerFern, relocType);
 
 		relocaliser_temp->LoadFromDirectory(relocaliserInputDirectory);
 
@@ -255,8 +260,7 @@ ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITM
 {
 	// prepare image and turn it into a depth image
 	if (relatedIMU == NULL) viewBuilder->UpdateView(&view, rgbImage, rawDepthImage, settings->useBilateralFilter);
-	else viewBuilder->UpdateView(&view, rgbImage, rawDepthImage, settings->useBilateralFilter, grayimg, relatedIMU, imgtime);//TODO: BUG collision of eigen and cuda
-    //	else viewBuilder->UpdateView(&view, rgbImage, rawDepthImage, settings->useBilateralFilter, imuMeasurement);
+	else viewBuilder->UpdateView(&view, rgbImage, rawDepthImage, settings->useBilateralFilter, grayimg, relatedIMU, imgtime);//depthAlign2Color TODO: BUG collision of eigen and cuda
 
     if (!mainProcessingActive) return ITMTrackingState::TRACKING_FAILED;
 
@@ -272,17 +276,16 @@ ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITM
             int id = i*640;
             for(int j=0;j<640;j++) {
                 int id1 = id + j;
-                if ((dep[id1]) > 0)
+                if ((dep[id1]) > 1e-3)
                     Dep.at<double>(i, j) = (double)(dep[id1]);
             }
         }
         //rovio track
-        rovioTracker->Track(*grayimg, Dep, relatedIMU, imgtime);
+        rovioTracker->Track(*grayimg, Dep, relatedIMU, imgtime); // TODO BUG 当depth大部分被遮挡时,系统崩溃;本根原因:rovio错误的pose给icp赋值.
         setPose(rovioTracker->T_rel());
     }
 
 	if (trackingActive) trackingController->Track(trackingState, view);
-
 
 	ITMTrackingState::TrackingResult trackerResult = ITMTrackingState::TRACKING_GOOD;
 	switch (settings->behaviourOnFailure) {
@@ -356,6 +359,7 @@ ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITM
 	}
 	else *trackingState->pose_d = oldPose;
 
+	//save camera trajectory.
     if(this->saveTrajectory) {
         const ORUtils::SE3Pose *p = trackingState->pose_d;
         double t[3];
@@ -366,7 +370,7 @@ ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITM
             for (int c = 0; c < 3; ++c)
                 R[r * 3 + c] = p->GetM().m[c * 4 + r];
         QuaternionFromRotationMatrix(R, q);
-        std::fprintf(trajectory, "%f %f %f %f %f %f %f\n", t[0], t[1], t[2], q[1], q[2], q[3], q[0]);
+        std::fprintf(trajectory, "%f %f %f %f %f %f %f %f\n", imgtime, t[0], t[1], t[2], q[1], q[2], q[3], q[0]);
     }
     
     return trackerResult;

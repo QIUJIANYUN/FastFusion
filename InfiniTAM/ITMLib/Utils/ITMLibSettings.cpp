@@ -7,8 +7,8 @@ using namespace ITMLib;
 #include <cmath>
 
 //use which sensor
-#define D435I
-//#define ZR300
+//#define D435I
+#define ZR300
 //#define AZUREKINECT
 
 ITMLibSettings::ITMLibSettings(void)
@@ -18,21 +18,23 @@ ITMLibSettings::ITMLibSettings(void)
 #ifdef D435I
     rovio_filter_config = "/home/zhuzunjie/Projects/InfiniTAM/InfiniTAM/Files/D435i/rovio.info";
     rovio_camera_config = "/home/zhuzunjie/Projects/InfiniTAM/InfiniTAM/Files/D435i/realsense.yaml";
-#endif
+#else
 #ifdef ZR300
     rovio_filter_config = "/home/zhuzunjie/Projects/InfiniTAM/InfiniTAM/Files/realsense/rovio.info";
     rovio_camera_config = "/home/zhuzunjie/Projects/InfiniTAM/InfiniTAM/Files/realsense/realsense.yaml";
-#endif
+#else
 #ifdef AZUREKINECT
     rovio_filter_config = "/home/zhuzunjie/Projects/InfiniTAM/InfiniTAM/Files/realsense/rovio.info";
     rovio_camera_config = "/home/zhuzunjie/Projects/InfiniTAM/InfiniTAM/Files/realsense/realsense.yaml";
+#endif
+#endif
 #endif
 
     //save images sequence results for side by side compare
     shotImageDir = "/home/zhuzunjie/Videos/TVCGvideo/rent1_slowloop2/InfiniTAM";
 
     saveTraj = false;
-    traj_save_dir = "traj_trans_only.txt";
+    traj_save_dir = "../../../traj_trans_only.txt";
 
     useIMU = false;
 	// skips every other point when using the colour renderer for creating a point cloud
@@ -59,7 +61,7 @@ ITMLibSettings::ITMLibSettings(void)
 	useApproximateRaycast = false;
 
 	/// enable or disable bilateral depth filtering
-	useBilateralFilter = false;
+	useBilateralFilter = true;
 
 	/// what to do on tracker failure: ignore, relocalise or stop integration - not supported in loop closure version
 //	behaviourOnFailure = FAILUREMODE_RELOCALISE; //TODO not complete
@@ -69,12 +71,22 @@ ITMLibSettings::ITMLibSettings(void)
 	libMode = LIBMODE_BASIC;
 //    libMode = LIBMODE_LOOPCLOSURE;
 
+    k_LoopCloseNeighbours = 3;
+    //F_MaxDistatTemptReloc = 0.10f; //rgbd
+    F_MaxDistatTemptReloc = 0.1f; //d good for rent1/loopclosure2
+//    F_MaxDistatTemptReloc = 0.08f; //d
+    F_MinDistAddKeyframe = 0.15f;// rgbd
+//    F_MinDistAddKeyframe = 0.10f;// d
+    separateThreadGlobalAdjustment = false;
+    numFerns = 1000;
+    numDecisionsPerFern = 4;
+    relocType = FernRelocLib::RelocType::DepthOnly;
 
     // FastFusion
     trackerConfig = "type=fastfusion,levels=rrrtb,minstep=1e-5,"
                     "outlierC=0.15,outlierF=0.05,"
                     "numiterC=10,numiterF=30,failureDec=30.0"; // 5 for normal, 20 for loop closure
-//    useIMU = true;
+    useIMU = true;
 
 /*    //Colour only tracking, using rendered colours
 //	trackerConfig = "type=rgb,levels=rrbb";

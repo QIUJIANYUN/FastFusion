@@ -1,7 +1,6 @@
 // Copyright 2014-2017 Oxford University Innovation Limited and the authors of InfiniTAM
 
 #include "RealSense2Engine.h"
-#include "librealsense2/rs_advanced_mode.hpp"
 
 #include "../ORUtils/FileUtils.h"
 
@@ -323,6 +322,8 @@ Vector2i RealSense2Engine::getDepthImageSize(void) const
 { return Vector2i(0,0); }
 Vector2i RealSense2Engine::getRGBImageSize(void) const
 { return Vector2i(0,0); }
+void RealSense2Engine::getRelatedIMU(vector<DataReader::IMUData> &relatedIMU)
+{}
 
 #endif
 

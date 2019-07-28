@@ -40,6 +40,9 @@ namespace ITMLib
 		int initiateNewLocalMap(bool isPrimaryLocalMap = false);
 		int initiateNewLink(int sceneID, const ORUtils::SE3Pose & pose, bool isRelocalisation);
 
+		/*
+		 * 如果跟踪成功则记录与primaryLocalMap的边,否则就剔除出ActiveMap
+		 */
 		void recordTrackingResult(int dataID, ITMTrackingState::TrackingResult trackingResult, bool primaryTrackingSuccess);
 		
 		// return whether or not the local map graph has changed

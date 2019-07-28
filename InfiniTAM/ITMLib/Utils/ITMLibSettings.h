@@ -4,6 +4,8 @@
 
 #include "ITMSceneParams.h"
 #include "../../ORUtils/MemoryDeviceType.h"
+#include "../../FernRelocLib/Relocaliser.h"
+
 #include <string>
 
 namespace ITMLib
@@ -65,7 +67,22 @@ namespace ITMLib
         std::string rovio_filter_config;
         std::string rovio_camera_config;
 
-		/// Further, scene specific parameters such as voxel size
+        //---------------LC parameters------------------
+        // number of nearest neighbours to find in the loop closure detection
+        int k_LoopCloseNeighbours;
+        // maximum distance reported by LCD library to attempt relocalisation
+        float F_MaxDistatTemptReloc; //d
+        // maximum distance, larger than which we must add keyframe.
+        float F_MinDistAddKeyframe;// d
+        // loop closure global adjustment runs on a separat thread
+        bool separateThreadGlobalAdjustment;
+        //Fern Number
+        int numFerns;
+        //Decisions per ferns
+        int numDecisionsPerFern;
+        FernRelocLib::RelocType relocType;
+
+        /// Further, scene specific parameters such as voxel size
 		ITMSceneParams sceneParams;
 
 		ITMLibSettings(void);

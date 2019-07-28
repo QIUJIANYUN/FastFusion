@@ -59,6 +59,15 @@ namespace ITMLib
 		/// Pointer to the current camera pose and additional tracking information
 		ITMTrackingState *trackingState;
 
+        // maximum distance, larger than which we must add keyframe.
+        float minDistAddKeyframe;// d
+
+        //Fern Number
+        int numFerns;
+        //Decisions per ferns
+        int numDecisionsPerFern;
+        FernRelocLib::RelocType relocType;
+
 	public:
 		ITMView* GetView(void) { return view; }
 		ITMTrackingState* GetTrackingState(void) { return trackingState; }

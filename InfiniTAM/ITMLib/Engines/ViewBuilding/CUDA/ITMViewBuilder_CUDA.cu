@@ -137,9 +137,9 @@ void ITMViewBuilder_CUDA::UpdateView(ITMView **view_ptr, ITMUChar4Image *rgbImag
 
 	ITMView *view = *view_ptr;
 
-	view->grayimg = grayimg;
-	view->imgtime = imgtime;
-	view->relatedIMU = relatedIMU;
+//	view->grayimg = grayimg;
+//	view->imgtime = imgtime;
+//	view->relatedIMU = relatedIMU;
 
 	if (storePreviousImage)
 	{
@@ -177,6 +177,7 @@ void ITMViewBuilder_CUDA::UpdateView(ITMView **view_ptr, ITMUChar4Image *rgbImag
 
     if (view->aligned_depth != NULL) delete view->aligned_depth;
     view->aligned_depth = new ITMFloatImage(rawDepthImage->noDims, true, true);
+    cudaMemset(view->aligned_depth->GetData(MEMORYDEVICE_CUDA), 0, view->aligned_depth->dataSize * sizeof(float));
 	this->depth_Align2_color(view->aligned_depth, view->depth, &(view->calib.trafo_depth_to_rgb), &(view->calib.intrinsics_d), &(view->calib.intrinsics_rgb));
 	view->aligned_depth->SetFrom(view->aligned_depth, MemoryBlock<float>::CUDA_TO_CPU);
 

@@ -306,11 +306,7 @@ void FastFusionTracker::TrackCamera(ITMTrackingState *trackingState, const ITMVi
 
             // if step is small, assume it's going to decrease the error and finish
             if (HasConverged(step)) break;
-
         }
-
-
-
     }
     this->UpdatePoseQuality(noValidPoints_old, hessian_good, f_old);
 }

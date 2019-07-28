@@ -67,7 +67,24 @@ namespace ITMLib
 
 		int trackNums;
 
-	public:
+		//----LC parameters
+        // number of nearest neighbours to find in the loop closure detection
+        int loopcloseneighbours;
+        // maximum distance reported by LCD library to attempt relocalisation
+        float maxdistattemptreloc; //d
+        // maximum distance, larger than which we must add keyframe.
+        float minDistAddKeyframe;// d
+        // loop closure global adjustment runs on a separat thread
+        bool separateThreadGlobalAdjustment;
+
+        //Fern Number
+        int numFerns;
+        //Decisions per ferns
+        int numDecisionsPerFern;
+        FernRelocLib::RelocType relocType;
+
+
+    public:
 		ITMView* GetView() { return view; }
 
 		ITMTrackingState* GetTrackingState(void);

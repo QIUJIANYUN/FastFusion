@@ -3,7 +3,7 @@
 #pragma once
 
 #include <fstream>
-
+#include <iostream>
 #include "FernConservatory.h"
 #include "RelocDatabase.h"
 #include "PoseDatabase.h"
@@ -45,7 +45,7 @@ namespace FernRelocLib
                 case Both:
                     encoding = new FernConservatory(numFerns, imgSize / (1 << levels), range, ORUtils::Vector2<float>(0,255), numDecisionsPerFern);
 
-                default:  cout<< "choose relocation type: depth, color, both"<<endl;
+			    default:  std::cout<< "choose relocation type: depth, color, both"<<std::endl;
 			}
 
 			relocDatabase = new RelocDatabase(numFerns, encoding->getNumCodes());
@@ -180,6 +180,11 @@ namespace FernRelocLib
 		const FernRelocLib::PoseDatabase::PoseInScene & RetrievePose(int id)
 		{
 			return poseDatabase->retrievePose(id);
+		}
+
+		bool CheckOutlier()
+		{
+            return true;
 		}
 
 		void SaveToDirectory(const std::string& outputDirectory)

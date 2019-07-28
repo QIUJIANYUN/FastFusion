@@ -9,6 +9,7 @@
 
 #ifdef COMPILE_WITH_RealSense2
 #include "librealsense2/rs.hpp"
+#include "librealsense2/rs_advanced_mode.hpp"
 namespace rs2 { class pipeline; class context; class device; }
 #endif
 
