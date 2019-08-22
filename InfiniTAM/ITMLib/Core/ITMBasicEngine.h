@@ -25,6 +25,8 @@ namespace ITMLib
 	private:
 	    bool saveTrajectory;
         FILE *trajectory;
+        bool saveDepth;
+        string depthSavedir;
 
         ITMExtrinsics depth2imu;
 

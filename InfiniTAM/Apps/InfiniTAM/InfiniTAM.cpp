@@ -2,6 +2,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <sys/stat.h>
 
 #include "UIEngine.h"
 
@@ -172,7 +173,7 @@ try
 	if(arg == 3){
 		color_dir = string(dir) + "/color";
 		depth_dir = string(dir) + "/depth";
-		sequence_dir = string(dir) + "/COLOR.txt";
+		sequence_dir = string(dir) + "/TIMESTAMP.txt";
 		imu_dir = string(dir) + "/IMU.txt";
 	} else{
 	    online_input = true;
@@ -193,6 +194,12 @@ try
 	}
 
 	ITMLibSettings *internalSettings = new ITMLibSettings();
+
+	if(internalSettings->saveRefinedepth){
+        mkdir((string(dir) + "/filtered").c_str(),0777);
+        internalSettings->depthSaveDir = string(dir) + "/filtered/";
+	}
+
 
 	ITMMainEngine *mainEngine = NULL;
 	switch (internalSettings->libMode)

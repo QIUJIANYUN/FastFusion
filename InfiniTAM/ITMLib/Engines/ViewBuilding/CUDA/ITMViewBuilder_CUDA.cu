@@ -171,9 +171,13 @@ void ITMViewBuilder_CUDA::UpdateView(ITMView **view_ptr, ITMUChar4Image *rgbImag
 		this->zr300_depth_denoise_point(view->depth, this->floatImage);
 		//3. 去除噪点（片）
 		this->zr300_depth_denoise_piece(this->floatImage, view->depth);
-		view->depth->SetFrom(this->floatImage, MemoryBlock<float>::CUDA_TO_CUDA);
-		view->depth->SetFrom(this->floatImage, MemoryBlock<float>::CUDA_TO_CPU);
+
+        view->depth->SetFrom(this->floatImage, MemoryBlock<float>::CUDA_TO_CUDA);
+        view->depth->SetFrom(this->floatImage, MemoryBlock<float>::CUDA_TO_CPU);
+	} else{
+	    view->depth->SetFrom(view->depth, MemoryBlock<float>::CUDA_TO_CPU);
 	}
+
 
     if (view->aligned_depth != NULL) delete view->aligned_depth;
     view->aligned_depth = new ITMFloatImage(rawDepthImage->noDims, true, true);

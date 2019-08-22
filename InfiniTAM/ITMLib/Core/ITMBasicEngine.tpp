@@ -17,6 +17,10 @@ using namespace ITMLib;
 template <typename TVoxel, typename TIndex>
 ITMBasicEngine<TVoxel,TIndex>::ITMBasicEngine(const ITMLibSettings *settings, const ITMRGBDCalib& calib, Vector2i imgSize_rgb, Vector2i imgSize_d)
 {
+    this->saveDepth = settings->saveRefinedepth;
+    if(this->saveDepth)
+        this->depthSavedir = settings->depthSaveDir;
+
     this->saveTrajectory = settings->saveTraj;
     if(this->saveTrajectory){
         string savedir = settings->traj_save_dir;
@@ -261,6 +265,26 @@ ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITM
 	// prepare image and turn it into a depth image
 	if (relatedIMU == NULL) viewBuilder->UpdateView(&view, rgbImage, rawDepthImage, settings->useBilateralFilter);
 	else viewBuilder->UpdateView(&view, rgbImage, rawDepthImage, settings->useBilateralFilter, grayimg, relatedIMU, imgtime);//depthAlign2Color TODO: BUG collision of eigen and cuda
+
+	if(saveDepth)
+	{
+        //SAVE filetered depth(ZR300)
+        float* pre_depth = view->depth->GetData(MEMORYDEVICE_CPU);
+        cv::Mat post_depth = cv::Mat::zeros(480,640,CV_16U); // 没有考虑延迟
+        for(int i=0;i<480;i++){
+            int id = i*640;
+            for(int j=0;j<640;j++) {
+                int id1 = id + j;
+                if ((pre_depth[id1]) > 1e-3)
+                    post_depth.at<ushort>(i, j) = (ushort)(pre_depth[id1] *1000.0f);
+            }
+        }
+        vector<int>compression_params;
+        compression_params.push_back(CV_IMWRITE_PNG_COMPRESSION);
+        compression_params.push_back(9);
+        cv::imwrite((this->depthSavedir + to_string((int)round(imgtime)) + ".png"), post_depth, compression_params);
+        turnOffMainProcessing();
+	}
 
     if (!mainProcessingActive) return ITMTrackingState::TRACKING_FAILED;
 

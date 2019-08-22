@@ -2,7 +2,7 @@
 # Top-level CMakeLists.txt for InfiniTAM #
 ##########################################
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.9)
 
 PROJECT(FastFusion_v2)
 
@@ -20,8 +20,7 @@ include_directories(/usr/include/eigen3)
 FIND_PACKAGE(kindr REQUIRED)
 FIND_PACKAGE(Glog REQUIRED)
 find_package(PkgConfig)
-PKG_CHECK_MODULES(YamlCpp REQUIRED yaml-cpp>=0.5)
-
+PKG_CHECK_MODULES(YamlCpp REQUIRED yaml-cpp>0.5)
 
 #################################
 # Add additional compiler flags #
@@ -33,7 +32,8 @@ ENDIF()
 
 IF(NOT MSVC_IDE)
   SET(CFLAGS_WARN "-Wall -Wextra -Wno-unused-parameter -Wno-strict-aliasing")
-  SET(CMAKE_CXX_FLAGS "-fPIC -O3 -march=native ${CFLAGS_WARN} ${CMAKE_CXX_FLAGS} -march=native -std=c++11 -lstdc++")
+#  SET(CMAKE_CXX_FLAGS "-fPIC -O3 -march=native ${CFLAGS_WARN} ${CMAKE_CXX_FLAGS} -std=c++11 -lstdc++")
+  SET(CMAKE_CXX_FLAGS "-fPIC -O3 ${CFLAGS_WARN} ${CMAKE_CXX_FLAGS} -std=c++11 -lstdc++")
   #SET(CMAKE_CXX_FLAGS "-fPIC -g ${CFLAGS_WARN} ${CMAKE_CXX_FLAGS}")
 ENDIF()
 

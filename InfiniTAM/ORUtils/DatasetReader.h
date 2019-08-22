@@ -2,13 +2,12 @@
 // Created by zhuzunjie on 18-4-9.
 //
 
-#ifndef INFINITAM_DATASETREADER_H
-#define INFINITAM_DATASETREADER_H
+#ifndef DATASETREADER_H
+#define DATASETREADER_H
 
 #include <vector>
 #include <string>
 #include <fstream>
-//#include <eigen3/Eigen/Dense>
 
 #include "IMUdata.h"
 
@@ -36,7 +35,6 @@ namespace DataReader {
 
 /*
  * @brief read groundtruth information.
- * TODO: from now on we only read position, need to read orientation as well.
  */
 //    void loadGTFile(const char *imuPath, std::vector<GT> &vGTData);
 
@@ -44,4 +42,4 @@ namespace DataReader {
 
 
 
-#endif //INFINITAM_DATASETREADER_H
+#endif //DATASETREADER_H

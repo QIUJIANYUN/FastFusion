@@ -296,9 +296,6 @@ void BlankImageGenerator::getImages(ITMUChar4Image *rgb, ITMShortImage *rawDepth
 template class InputSource::ImageFileReader<ImageMaskPathGenerator>;
 template class InputSource::ImageFileReader<ImageListPathGenerator>;
 
-
-
-
 DatasetReader::DatasetReader(const char *calibFilename, const char *rgbImageMask, const char *depthImageMask,
 							 const char *rgbImageTimestamp, const char *imuTimestamp): BaseImageSourceEngine(calibFilename)
 {
@@ -311,7 +308,7 @@ DatasetReader::DatasetReader(const char *calibFilename, const char *rgbImageMask
 	DataReader::loadIMUFile(this->IMU, vIMUList);
 
 	totalFrameNo = (int)vColorList.size();
-	currentFrameNo = 20;//图像开始位置
+	currentFrameNo = 30;//图像开始位置
 	if(vIMUList.size()>0) timestampAlignment();
 
 	cachedFrameNo = currentFrameNo - 1;
@@ -358,7 +355,7 @@ void DatasetReader::loadIntoCache() const
 
 bool DatasetReader::hasMoreImages(void) const
 {
-	if (currentFrameNo > totalFrameNo-5) return 0;
+	if (currentFrameNo > totalFrameNo-10) return 0;
 	loadIntoCache();
 	return 1;
 }

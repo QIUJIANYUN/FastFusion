@@ -59,6 +59,8 @@ namespace ITMLib
 		const char *trackerConfig;
 		bool useIMU;
 
+		bool saveRefinedepth;
+		std::string depthSaveDir;
         std::string shotImageDir;
         bool saveTraj;
         std::string traj_save_dir;

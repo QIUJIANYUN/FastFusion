@@ -24,7 +24,7 @@ SET(sources
 FileUtils.cpp
 KeyValueConfig.cpp
 SE3Pose.cpp
-        IMUdata.cpp
+#        IMUdata.cpp
         DatasetReader.cpp
 )
 

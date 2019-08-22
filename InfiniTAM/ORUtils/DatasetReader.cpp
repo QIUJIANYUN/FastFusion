@@ -22,9 +22,9 @@ namespace DataReader {
             string temp1 = line.substr(0, comma);
             temp.timeStamp = (double) atof(temp1.c_str());
 
-            comma2 = line.find('g', comma + 1);
-            temp.imgName = line.substr(comma + 1, comma2 - comma).c_str();
-
+            comma2 = line.find(',', comma + 1);
+            temp.imgName = line.substr(comma + 1, comma2 - comma - 1).c_str();
+            if(temp.timeStamp < 1e-3) continue;
             iListData.push_back(temp);
 
         }
@@ -87,6 +87,7 @@ namespace DataReader {
                 ++j;
                 comma = comma2;
             }
+            if(imuTimeStamp < 1e-3) continue;
             IMUData tempImu(grad[0], grad[1], grad[2], acc[0], acc[1], acc[2], imuTimeStamp);
             vimuData.push_back(tempImu);
 
@@ -97,68 +98,6 @@ namespace DataReader {
 
         //return 0;
     }
-
-    /*void loadGTFile(const char *imuPath, std::vector<GT> &vGTData) {
-        ifstream inf;
-        inf.open(imuPath, ifstream::in);
-        const int cnt = 7;          // 你要输出的个数
-
-        string line;
-        //int i = 0;
-        int j = 0;
-        size_t comma = 0;
-        size_t comma2 = 0;
-
-        getline(inf, line);
-        while (!inf.eof()) {
-            GT tempGT;
-            getline(inf, line);
-            comma = line.find(',', 0);
-            string temp = line.substr(0, comma);
-            tempGT.timeStamp = (double) atof(temp.c_str());
-
-            //cout<<line.substr(0,comma).c_str()<<' ';
-            //memcpy(imuTimeStamp,line.substr(0,comma).c_str(),line.substr(0,comma).length);
-            while (j < cnt) {
-
-                comma2 = line.find(',', comma + 1);
-                switch (j) {
-                    case 0:
-                        tempGT.position[2] = atof(line.substr(comma + 1, comma2 - comma - 1).c_str());
-                        break;
-                    case 1:
-                        tempGT.position[0] = -(atof(line.substr(comma + 1, comma2 - comma - 1).c_str()));
-                        break;
-                    case 2:
-                        tempGT.position[1] = -(atof(line.substr(comma + 1, comma2 - comma - 1).c_str()));
-                        break;
-                        // 				case 3:
-                        // 					tempGT.rotation_Q[0] = atof(line.substr(comma + 1,comma2-comma-1).c_str());
-                        // 					break;
-                        // 				case 4:
-                        // 					tempGT.rotation_Q[1] = atof(line.substr(comma + 1,comma2-comma-1).c_str());
-                        // 					break;
-                        // 				case 5:
-                        // 					tempGT.rotation_Q[2] = atof(line.substr(comma + 1,comma2-comma-1).c_str());
-                        // 					break;
-                        // 				case 6:
-                        // 					tempGT.rotation_Q[3] = atof(line.substr(comma + 1,comma2-comma-1).c_str());
-                        // 					break;
-                }
-                //cout<<line.substr(comma + 1,comma2-comma-1).c_str()<<' ';
-                ++j;
-                comma = comma2;
-            }
-
-            vGTData.push_back(tempGT);
-
-            j = 0;
-        }
-
-        inf.close();
-
-        //return 0;
-    }*/
 
     void synInit(std::vector<ICell> &imageList, std::vector<IMUData> &imuList, int imgIdx, int imuIdx) {
         // Find Start Idx
@@ -191,3 +130,65 @@ namespace DataReader {
         imuIdx = startImuIdx;
     }
 }
+
+/*void loadGTFile(const char *imuPath, std::vector<GT> &vGTData) {
+    ifstream inf;
+    inf.open(imuPath, ifstream::in);
+    const int cnt = 7;          // 你要输出的个数
+
+    string line;
+    //int i = 0;
+    int j = 0;
+    size_t comma = 0;
+    size_t comma2 = 0;
+
+    getline(inf, line);
+    while (!inf.eof()) {
+        GT tempGT;
+        getline(inf, line);
+        comma = line.find(',', 0);
+        string temp = line.substr(0, comma);
+        tempGT.timeStamp = (double) atof(temp.c_str());
+
+        //cout<<line.substr(0,comma).c_str()<<' ';
+        //memcpy(imuTimeStamp,line.substr(0,comma).c_str(),line.substr(0,comma).length);
+        while (j < cnt) {
+
+            comma2 = line.find(',', comma + 1);
+            switch (j) {
+                case 0:
+                    tempGT.position[2] = atof(line.substr(comma + 1, comma2 - comma - 1).c_str());
+                    break;
+                case 1:
+                    tempGT.position[0] = -(atof(line.substr(comma + 1, comma2 - comma - 1).c_str()));
+                    break;
+                case 2:
+                    tempGT.position[1] = -(atof(line.substr(comma + 1, comma2 - comma - 1).c_str()));
+                    break;
+                    // 				case 3:
+                    // 					tempGT.rotation_Q[0] = atof(line.substr(comma + 1,comma2-comma-1).c_str());
+                    // 					break;
+                    // 				case 4:
+                    // 					tempGT.rotation_Q[1] = atof(line.substr(comma + 1,comma2-comma-1).c_str());
+                    // 					break;
+                    // 				case 5:
+                    // 					tempGT.rotation_Q[2] = atof(line.substr(comma + 1,comma2-comma-1).c_str());
+                    // 					break;
+                    // 				case 6:
+                    // 					tempGT.rotation_Q[3] = atof(line.substr(comma + 1,comma2-comma-1).c_str());
+                    // 					break;
+            }
+            //cout<<line.substr(comma + 1,comma2-comma-1).c_str()<<' ';
+            ++j;
+            comma = comma2;
+        }
+
+        vGTData.push_back(tempGT);
+
+        j = 0;
+    }
+
+    inf.close();
+
+    //return 0;
+}*/

@@ -18,6 +18,8 @@ static bool default_depth2color = false; // 这里估计也是计算出来的,�
 using namespace InputSource;
 using namespace ITMLib;
 
+#define tt 1000.0
+
 class RealSenseEngine::PrivateData
 {
 	public:
@@ -70,7 +72,7 @@ RealSenseEngine::RealSenseEngine(const char *calibFilename, bool alignColourWith
         {
             imu._a[0] = entry.axes[0]; imu._a[1] = entry.axes[1]; imu._a[2] = entry.axes[2];
 
-            double t = entry.timestamp_data.timestamp;
+            double t = entry.timestamp_data.timestamp *tt;
             if(t < gtime || gtime == 0.0 || atime >= gtime )
             {
                 atime = t;
@@ -98,7 +100,7 @@ RealSenseEngine::RealSenseEngine(const char *calibFilename, bool alignColourWith
             imu._g[1] = entry.axes[1];
             imu._g[2] = entry.axes[2];
 
-            gtime = entry.timestamp_data.timestamp;
+            gtime = entry.timestamp_data.timestamp*tt;
             imu._t = gtime;
         }
     };
@@ -181,14 +183,14 @@ void RealSenseEngine::getImages(ITMUChar4Image *rgbImage, ITMShortImage *rawDept
 {
 	dataAvailable = false;
 
-	last_image_time = data->dev->get_frame_timestamp(rs::stream::depth);
+	last_image_time = data->dev->get_frame_timestamp(rs::stream::depth) * tt;
 //	cout << "last: " << last_image_time << endl;
 	// get frames
 	data->dev->wait_for_frames();
 
     double Time1 = (double)cvGetTickCount();
     collect_frame_num++;
-    imgtime = data->dev->get_frame_timestamp(rs::stream::depth);
+    imgtime = data->dev->get_frame_timestamp(rs::stream::depth) *tt;
 
     inputRGBImage1->SetFrom(inputRGBImage2, ORUtils::MemoryBlock<Vector4u>::CPU_TO_CPU);
     inputRGBImage2->SetFrom(inputRGBImage3, ORUtils::MemoryBlock<Vector4u>::CPU_TO_CPU);
@@ -260,8 +262,10 @@ Vector2i RealSenseEngine::getRGBImageSize(void) const { return (data!=NULL)?imag
 
 void RealSenseEngine::getRelatedIMU(vector<DataReader::IMUData> &relatedIMU)
 {
+
     if(related_imu.front()._t <= last_image_time)
         related_imu.pop();
+    cout << related_imu.size() << endl;
 
     while(related_imu.front()._t <= imgtime)
     {

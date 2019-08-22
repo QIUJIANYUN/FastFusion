@@ -7,8 +7,8 @@ using namespace ITMLib;
 #include <cmath>
 
 //use which sensor
-//#define D435I
-#define ZR300
+#define D435I
+//#define ZR300
 //#define AZUREKINECT
 
 ITMLibSettings::ITMLibSettings(void)
@@ -33,10 +33,13 @@ ITMLibSettings::ITMLibSettings(void)
     //save images sequence results for side by side compare
     shotImageDir = "/home/zhuzunjie/Videos/TVCGvideo/rent1_slowloop2/InfiniTAM";
 
+    //extra
+    saveRefinedepth = false;
+    useIMU = false;
     saveTraj = false;
     traj_save_dir = "../../../traj_trans_only.txt";
 
-    useIMU = false;
+
 	// skips every other point when using the colour renderer for creating a point cloud
 	skipPoints = true;
 

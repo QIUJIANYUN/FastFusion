@@ -168,8 +168,8 @@ Prediction
     }
     MotionDetection
     {
-	    inertialMotionRorTh 0.1;				Treshold on rotational rate for motion detection [rad/s]
-	    inertialMotionAccTh 0.5;				Treshold on acceleration for motion detection [m/s^2]
+	    inertialMotionRorTh 5;				Treshold on rotational rate for motion detection [rad/s]
+	    inertialMotionAccTh 10;				Treshold on acceleration for motion detection [m/s^2]
 	}
 }
 PoseUpdate

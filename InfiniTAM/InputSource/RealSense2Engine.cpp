@@ -13,10 +13,11 @@
 
 #ifdef COMPILE_WITH_RealSense2
 
+#define tt 1000.0
+
 static queue<DataReader::IMUData> related_imu;
 rs2::frame_queue depth_queue(1);
 rs2::frame_queue color_queue(1);
-mutex get_image_lock;
 mutex get_imu_lock;
 static bool default_depth2color = false; // 这里估计也是计算出来的,而且用的cpu,需要12ms
 
@@ -61,7 +62,7 @@ RealSense2Engine::RealSense2Engine(const char *calibFilename, bool alignColourWi
 
     //init delay
     collect_frame_num = 0;
-	last_image_time = 0.0;
+	last_image_time = 0.0f;
 	//IMAGE DELAY 2
     inputRGBImage1 = new ITMUChar4Image(this->imageSize_rgb, true, true);
     inputRGBImage2 = new ITMUChar4Image(this->imageSize_rgb, true, true);
@@ -73,7 +74,7 @@ RealSense2Engine::RealSense2Engine(const char *calibFilename, bool alignColourWi
 	this->ctx = std::unique_ptr<rs2::context>(new rs2::context());
 	
 	rs2::device_list availableDevices = ctx->query_devices();
-	
+
 	printf("There are %d connected RealSense devices.\n", availableDevices.size());
 	if (availableDevices.size() == 0) {
 		dataAvailable = false;
@@ -137,7 +138,7 @@ RealSense2Engine::RealSense2Engine(const char *calibFilename, bool alignColourWi
         {
             if (motion.get_profile().stream_type() == RS2_STREAM_ACCEL)
             {
-                double t = motion.get_timestamp();
+                double t = motion.get_timestamp() * tt;
                 // Get accelerometer measures
                 rs2_vector accel_data = motion.get_motion_data();
 
@@ -157,7 +158,7 @@ RealSense2Engine::RealSense2Engine(const char *calibFilename, bool alignColourWi
             if (motion.get_profile().stream_type() == RS2_STREAM_GYRO)
             {
                 // Get the timestamp of the current frame
-                double t = motion.get_timestamp();
+                double t = motion.get_timestamp() * tt;
                 // Get gyro measures
                 rs2_vector gyro_data = motion.get_motion_data();
 
@@ -210,16 +211,8 @@ void RealSense2Engine::getImages(ITMUChar4Image *rgbImage, ITMShortImage *rawDep
     color_queue.try_wait_for_frame(&color);
 
     collect_frame_num++;
-    imgtime = depth.get_timestamp();
+    imgtime = depth.get_timestamp() * tt;
     if(last_image_time < 1e-3) last_image_time = imgtime;
-//
-//	// get frames
-//	rs2::frameset frames = pipe->wait_for_frames();
-//    collect_frame_num++;
-//	imgtime = frames.get_timestamp();
-//	if(last_image_time < 1e-3) last_image_time = imgtime;
-//	rs2::video_frame depth = frames.get_depth_frame();
-//	rs2::video_frame color = frames.get_color_frame();
 
 	//execute image delay
     inputRGBImage1->SetFrom(inputRGBImage2, ORUtils::MemoryBlock<Vector4u>::CPU_TO_CPU);
@@ -253,6 +246,7 @@ void RealSense2Engine::getImages(ITMUChar4Image *rgbImage, ITMShortImage *rawDep
     } else if(collect_frame_num == 1){
         rgbImage->SetFrom(inputRGBImage3, ORUtils::MemoryBlock<Vector4u>::CPU_TO_CPU);
         rawDepthImage->SetFrom(inputRawDepthImage3, ORUtils::MemoryBlock<short>::CPU_TO_CPU);
+
         cout<< "first" << related_imu.size() <<endl;
         std::lock_guard<std::mutex> lock(get_imu_lock);
         while(related_imu.front()._t <= imgtime)
@@ -286,19 +280,24 @@ Vector2i RealSense2Engine::getRGBImageSize(void) const {
 
 void RealSense2Engine::getRelatedIMU(vector<DataReader::IMUData> &relatedIMU)
 {
-    cout<< "related" << related_imu.size()<<endl;
     std::lock_guard<std::mutex> lock(get_imu_lock);
-    if(related_imu.front()._t <= last_image_time) {
+    if(related_imu.front()._t <= last_image_time)
         related_imu.pop();
-    }
-    while(related_imu.front()._t <= imgtime)
-    {
-//        cout << related_imu.front()._t << endl;
-        relatedIMU.push_back(related_imu.front());
-        related_imu.pop();
-    }
-    last_image_time = imgtime;
+    cout<< "related" << related_imu.size()<<endl;
 
+    while(!related_imu.empty()) {
+        if(related_imu.front()._t <= imgtime)
+        {
+            /*cout << related_imu.front()._t << endl;
+            cout << related_imu.front()._a[0] << " " << related_imu.front()._a[1] << " " << related_imu.front()._a[1] << " "
+                 << related_imu.front()._g[0] << " " << related_imu.front()._g[1] << " " << related_imu.front()._g[2] << endl;*/
+            relatedIMU.push_back(related_imu.front());
+            related_imu.pop();
+        }
+        else break;
+    }
+
+    last_image_time = imgtime;
     cout << "current: " << relatedIMU.size()<< endl;
 }
 
