@@ -630,16 +630,47 @@ void UIEngine::Initialise(int & argc, char** argv, ImageSourceEngine *imageSourc
     }
 
     //rent1/slowloop2
-    Matrix4f initFreeviewPose(0.825814962387, 0.561748147011,-0.0496866106987, 0,
+/*    Matrix4f initFreeviewPose(0.825814962387, 0.561748147011,-0.0496866106987, 0,
     -0.214353889227,0.394164562225,0.893692791462,0,
     0.521614909172, -0.727374315262, 0.44591987133, 0,
-    0.027501674369,-0.260003656149,8.00000286102,1);
+    0.027501674369,-0.260003656149,8.00000286102,1);*/
 
     //rent2/slowloop4
 /*    Matrix4f initFreeviewPose(0.897114634514, -0.441361516714,-0.0196298621595, 0,
             0.207036167383,0.380741506815, 0.901205778122,0,
             -0.390283674002, -0.812548995018, 0.432946592569, 0,
             -0.794941067696, -0.305516034365,7.99935054779,1);*/
+
+//GBJ:
+    //livingroom
+//    Matrix4f initFreeviewPose(0.938, -0.301,  0.167, 0,
+//                              0.166,   0.82,  0.548, 0,
+//                             -0.302, -0.487,  0.819, 0,
+//                             -0.902,  1.115,  1.383, 1);
+//    Matrix4f initFreeviewPose(0.932, -0.015,  0.361,  0,
+//                              0.166, 0.906, -0.389,  0,
+//                              -0.321, 0.422,  0.848,  0,
+//                              -0.961, -0.927,  1.095,  1);
+//    Matrix4f initFreeviewPose(0.932 , -0.35 , 0.096 ,  0,
+//                              0.137 , 0.583 , 0.801 ,  0,
+//                              -0.336, -0.733,  0.591,   0,
+//                              -0.69 ,-1.326 , 8.287 ,  1);
+
+    //gym
+//    Matrix4f initFreeviewPose(0.509 ,-0.741 , 0.437  ,   0,
+//                              0.337 ,  0.64 , 0.691  ,   0,
+//                              -0.792, -0.206,  0.576 ,    0,
+//                              0.603 , 1.354 , -0.03  ,   1);
+//    Matrix4f initFreeviewPose(0.577 , 0.126 , 0.807  ,    0,
+//                              0.275 ,   0.9 ,-0.338  ,    0,
+//                              -0.769,  0.417,  0.486 ,     0,
+//                              0.517 ,-1.655 , 0.134  ,    1);
+    Matrix4f initFreeviewPose(0.585 , -0.81 ,-0.038  ,    0,
+                              0.413 , 0.257 , 0.874  ,    0,
+                              -0.698, -0.527,  0.485 ,     0,
+                              -0.011, -1.323,  8.483 ,     1);
+
+
 
     freeviewPose.SetM(initFreeviewPose);
     if (this->mainEngine->GetView() != NULL) {
@@ -700,8 +731,9 @@ void UIEngine::ProcessFrame()
     }
     cout << endl;
     cout << "---------------" << currentFrameNo << "---------------" <<  endl;
-
+//    TICK("Read Image");
 	imageSource->getImages(inputRGBImage, inputRawDepthImage);//cost time: 1.8ms
+//	TOCK("Read Image");
 	relatedIMU.clear();
 	if(internalSettings->useIMU) imageSource->getRelatedIMU(relatedIMU);
 
@@ -731,13 +763,13 @@ void UIEngine::ProcessFrame()
 
 	ITMTrackingState::TrackingResult trackerResult;
 
-    TICK("Track");
+//    TICK("Track");
 	//actual processing on the mailEngine
 	if (internalSettings->useIMU) {
-	    trackerResult = mainEngine->ProcessFrame(inputRGBImage, inputRawDepthImage, &imageSource->grayimg, NULL, &relatedIMU, imageSource->imgtime);
+	    trackerResult = mainEngine->ProcessFrame(inputRGBImage, inputRawDepthImage, imageSource->imgtime, &imageSource->grayimg, NULL, &relatedIMU);
 	}
-	else trackerResult = mainEngine->ProcessFrame(inputRGBImage, inputRawDepthImage);
-    TOCK("Track");
+	else trackerResult = mainEngine->ProcessFrame(inputRGBImage, inputRawDepthImage, imageSource->imgtime);
+//    TOCK("Track");
 	trackingResult = (int)trackerResult;
 
 #ifndef COMPILE_WITHOUT_CUDA
@@ -752,6 +784,7 @@ void UIEngine::ProcessFrame()
 
 	currentFrameNo++;
     Stopwatch::getInstance().printAll();
+    Stopwatch::getInstance().sendAll();
 }
 
 void UIEngine::Run() { glutMainLoop(); }

@@ -16,7 +16,7 @@ namespace DataReader
         // Raw data of imu's
         double _g[3];    //gyr data
         double _a[3];    //acc data
-        double _t;      //timestamp
+        double _t;      //timestamp (second)
     };
 }
 #endif //IMUDATA_H

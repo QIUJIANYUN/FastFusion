@@ -23,6 +23,7 @@ namespace ITMLib
     {
     private:
 //        RovioTracker *roviotracker;
+        FILE *ICP;
 
         const ITMLowLevelEngine *lowLevelEngine;
         ITMImageHierarchy<ITMSceneHierarchyLevel> *sceneHierarchy;

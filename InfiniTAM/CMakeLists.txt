@@ -2,7 +2,7 @@
 # Top-level CMakeLists.txt for InfiniTAM #
 ##########################################
 
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.10)
 
 PROJECT(FastFusion_v2)
 
@@ -11,7 +11,7 @@ PROJECT(FastFusion_v2)
 #################################
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
-
+set(CMAKE_CXX_STANDARD 11)
 
 FIND_PACKAGE(OpenCV 2.4 REQUIRED)
 FIND_PACKAGE(Eigen REQUIRED)
@@ -37,13 +37,6 @@ IF(NOT MSVC_IDE)
   #SET(CMAKE_CXX_FLAGS "-fPIC -g ${CFLAGS_WARN} ${CMAKE_CXX_FLAGS}")
 ENDIF()
 
-#########################
-# Suppress auto-linking #
-#########################
-
-IF(MSVC_IDE)
-  ADD_DEFINITIONS(-DUSING_CMAKE=1)
-ENDIF()
 
 ######################
 # Add subdirectories #

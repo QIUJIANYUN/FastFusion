@@ -43,6 +43,7 @@ namespace ITMLib
         ITMFloatImage *aligned_depth;
 		std::vector<DataReader::IMUData> *relatedIMU;
 		double imgtime;
+		float average_depth;
 
 		ITMView(const ITMRGBDCalib& calibration, Vector2i imgSize_rgb, Vector2i imgSize_d, bool useGPU)
 		: calib(calibration)

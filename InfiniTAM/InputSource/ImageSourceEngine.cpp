@@ -10,6 +10,7 @@
 
 using namespace InputSource;
 using namespace ITMLib;
+using namespace DataReader;
 
 BaseImageSourceEngine::BaseImageSourceEngine(const char *calibFilename)
 {
@@ -39,14 +40,20 @@ ImageMaskPathGenerator::ImageMaskPathGenerator(const char *rgbImageMask_, const 
 std::string ImageMaskPathGenerator::getRgbImagePath(size_t currentFrameNo) const
 {
 	char str[BUF_SIZE];
-	sprintf(str, rgbImageMask, currentFrameNo);
+	string a, b;
+	a = "/";
+	b = "color.png";
+	sprintf(str, rgbImageMask, a.c_str(), currentFrameNo, b.c_str());
 	return std::string(str);
 }
 
 std::string ImageMaskPathGenerator::getDepthImagePath(size_t currentFrameNo) const
 {
 	char str[BUF_SIZE];
-	sprintf(str, depthImageMask, currentFrameNo);
+    string a, b;
+    a = "/";
+    b = ".png";
+	sprintf(str, depthImageMask, a.c_str(), currentFrameNo, b.c_str());
 	return std::string(str);
 }
 
@@ -104,14 +111,14 @@ void ImageFileReader<PathGenerator>::loadIntoCache(void) const
 
 	cacheIsValid = true;
 
-	std::string rgbPath = pathGenerator.getRgbImagePath(currentFrameNo);
+	std::string rgbPath = pathGenerator.getRgbImagePath(currentFrameNo) + "/" + to_string(currentFrameNo) + ".png";
 	if (!ReadImageFromFile(cached_rgb, rgbPath.c_str()))
 	{
 		if (cached_rgb->noDims.x > 0) cacheIsValid = false;
 		printf("error reading file '%s'\n", rgbPath.c_str());
 	}
 
-	std::string depthPath = pathGenerator.getDepthImagePath(currentFrameNo);
+	std::string depthPath = pathGenerator.getDepthImagePath(currentFrameNo) + "/" + to_string(currentFrameNo) + ".png";
 	if (!ReadImageFromFile(cached_depth, depthPath.c_str()))
 	{
 		if (cached_depth->noDims.x > 0) cacheIsValid = false;
@@ -135,7 +142,8 @@ void ImageFileReader<PathGenerator>::getImages(ITMUChar4Image *rgb, ITMShortImag
 	rgb->SetFrom(cached_rgb, ORUtils::MemoryBlock<Vector4u>::CPU_TO_CPU);
 	rawDepth->SetFrom(cached_depth, ORUtils::MemoryBlock<short>::CPU_TO_CPU);
 
-	++currentFrameNo;
+//	++currentFrameNo;
+    currentFrameNo +=1;
 }
 
 template <typename PathGenerator>
@@ -150,6 +158,11 @@ Vector2i ImageFileReader<PathGenerator>::getRGBImageSize(void) const
 {
 	loadIntoCache();
 	return cached_rgb->noDims;
+}
+
+template <typename PathGenerator>
+void ImageFileReader<PathGenerator>::getRelatedIMU(vector<DataReader::IMUData> &relatedIMU)
+{
 }
 
 
@@ -296,25 +309,61 @@ void BlankImageGenerator::getImages(ITMUChar4Image *rgb, ITMShortImage *rawDepth
 template class InputSource::ImageFileReader<ImageMaskPathGenerator>;
 template class InputSource::ImageFileReader<ImageListPathGenerator>;
 
-DatasetReader::DatasetReader(const char *calibFilename, const char *rgbImageMask, const char *depthImageMask,
-							 const char *rgbImageTimestamp, const char *imuTimestamp): BaseImageSourceEngine(calibFilename)
+DatasetReader::DatasetReader(const string cal, const string dir, int dm): BaseImageSourceEngine(cal.c_str())
 {
-	strncpy(this->rgbImageMask, rgbImageMask, BUF_SIZE);
-	strncpy(this->depthImageMask, depthImageMask, BUF_SIZE);
-	strncpy(this->IMU, imuTimestamp, BUF_SIZE);
 
-	DataReader::loadImageList(rgbImageTimestamp,vColorList);
-	DataReader::loadImageList(rgbImageTimestamp,vDepthList);
-	DataReader::loadIMUFile(this->IMU, vIMUList);
+    const char *imu = nullptr;
+//    string color_dir;
+//    string depth_dir;
+    imu_dir = dir + "/IMU.txt";
+    string associate_dir = dir + "/TIMESTAMP.txt";
 
-	totalFrameNo = (int)vColorList.size();
-	currentFrameNo = 30;//图像开始位置
-	if(vIMUList.size()>0) timestampAlignment();
 
-	cachedFrameNo = currentFrameNo - 1;
+    printf("init offline image loader ...\n");
 
-	cached_rgb = NULL;
-	cached_depth = NULL;
+    switch(dm){
+        case DatasetMode::ICL :
+            color_dir = dir + "/rgb/";
+            depth_dir = dir + "/depth/";
+            break;
+        case DatasetMode::TUM :
+            color_dir = dir + "/";
+            depth_dir = dir + "/";
+            imu_dir = dir + "/imu.txt";
+            associate_dir = dir + "/associated.txt";
+
+            break;
+        case DatasetMode::MyZR300 :
+            color_dir = dir + "/color/";
+            depth_dir = dir + "/filtered/";
+            break;
+        case DatasetMode::MyD435i :
+        case DatasetMode::MyAzureKinect :
+            color_dir = dir + "/color/";
+            depth_dir = dir + "/depth/";
+
+            break;
+        default :
+            printf("Unknown dataset");
+    }
+    printf("color_dir: %s \n depth_dir: %s \n imu_dir: %s \n", color_dir.c_str(), depth_dir.c_str(), imu_dir.c_str());
+
+//    strncpy(this->rgbImageMask, color_dir.c_str(), BUF_SIZE);
+//    strncpy(this->depthImageMask, depth_dir.c_str(), BUF_SIZE);
+//    strncpy(this->IMU, imu_dir.c_str(), BUF_SIZE);
+
+    DataReader::loadImageList(dir.c_str(), associate_dir.c_str(),vColorList, vDepthList, dm);
+    DataReader::loadIMUFile(imu_dir.c_str(), vIMUList);
+
+    totalFrameNo = (int)vColorList.size();
+//    currentFrameNo = 0;//图像开始位置
+    currentFrameNo = 5;//图像开始位置
+    if(vIMUList.size()>0) timestampAlignment();
+
+    cachedFrameNo = currentFrameNo - 1;
+
+    cached_rgb = NULL;
+    cached_depth = NULL;
 }
 
 DatasetReader::~DatasetReader()
@@ -331,9 +380,10 @@ void DatasetReader::loadIntoCache() const
 	cached_rgb = new ITMUChar4Image(true, false);
 	cached_depth = new ITMShortImage(true, false);
 
-	string str = string(rgbImageMask) + "/" + vColorList[currentFrameNo - 3].imgName;
-	string str_rovio = string(rgbImageMask) + "/" + vColorList[currentFrameNo].imgName;
-//	sprintf(str, rgbImageMask, "/", vColorList[currentFrameNo].imgName.c_str());
+//    string str = color_dir + vColorList[currentFrameNo].imgName;
+	string str = color_dir + vColorList[currentFrameNo-4].imgName;
+	string str_rovio = color_dir + vColorList[currentFrameNo].imgName;
+	printf(str.c_str());
 
 	if (!ReadImageFromFile(cached_rgb, str.c_str()))
 	{
@@ -343,9 +393,9 @@ void DatasetReader::loadIntoCache() const
 	grayimg = cv::imread(str_rovio, 0);
 	imgtime = vColorList[currentFrameNo].timeStamp;
 
-//	sprintf(str, depthImageMask, "/", vDepthList[currentFrameNo].imgName.c_str());
 	str.clear(); str_rovio.clear();
-	str = string(depthImageMask) + "/" + vColorList[currentFrameNo - 3].imgName;
+//    str = depth_dir + vDepthList[currentFrameNo].imgName;
+	str = depth_dir + vDepthList[currentFrameNo-4].imgName;
 	if (!ReadImageFromFile(cached_depth, str.c_str()))
 	{
 		delete cached_depth; cached_depth = NULL;
@@ -355,7 +405,7 @@ void DatasetReader::loadIntoCache() const
 
 bool DatasetReader::hasMoreImages(void) const
 {
-	if (currentFrameNo > totalFrameNo-10) return 0;
+	if (currentFrameNo >= totalFrameNo) return 0;
 	loadIntoCache();
 	return 1;
 }
@@ -375,17 +425,17 @@ void DatasetReader::getImages(ITMUChar4Image *rgb, ITMShortImage *rawDepth)
 		cached_depth = NULL;
 		bUsedCache = true;
 	}
-
-	if (!bUsedCache) {
-		char str[2048];
-
-		sprintf(str, rgbImageMask, currentFrameNo);
-		if (!ReadImageFromFile(rgb, str)) printf("error reading file '%s'\n", str);
-
-		sprintf(str, depthImageMask, currentFrameNo);
-		if (!ReadImageFromFile(rawDepth, str)) printf("error reading file '%s'\n", str);
-	}
-	++currentFrameNo;
+//
+//	if (!bUsedCache) {
+//		char str[2048];
+//
+//		sprintf(str, rgbImageMask, currentFrameNo);
+//		if (!ReadImageFromFile(rgb, str)) printf("error reading file '%s'\n", str);
+//
+//		sprintf(str, depthImageMask, currentFrameNo);
+//		if (!ReadImageFromFile(rawDepth, str)) printf("error reading file '%s'\n", str);
+//	}
+	currentFrameNo +=1;
 }
 
 Vector2i DatasetReader::getDepthImageSize(void) const

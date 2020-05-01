@@ -24,7 +24,10 @@ namespace ITMLib
 	{
 	private:
 	    bool saveTrajectory;
+	    int fid;
         FILE *trajectory;
+        FILE *speed;
+        FILE *averagedepth;
         bool saveDepth;
         string depthSavedir;
 
@@ -77,7 +80,7 @@ namespace ITMLib
 		/// Gives access to the internal world representation
 		ITMScene<TVoxel, TIndex>* GetScene(void) { return scene; }
 
-		ITMTrackingState::TrackingResult ProcessFrame(ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, cv::Mat *grayimg = NULL, ITMIMUMeasurement *imuMeasurement = NULL, std::vector<DataReader::IMUData> *relatedIMU = NULL, double imgtime = 0);
+		ITMTrackingState::TrackingResult ProcessFrame(ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, double imgtime, cv::Mat *grayimg = NULL, ITMIMUMeasurement *imuMeasurement = NULL, std::vector<DataReader::IMUData> *relatedIMU = NULL);
 
 		/// Extracts a mesh from the current scene and saves it to the model file specified by the file name
 		void SaveSceneToMesh(const char *fileName);

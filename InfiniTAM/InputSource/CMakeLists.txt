@@ -34,6 +34,7 @@ INCLUDE(${PROJECT_SOURCE_DIR}/cmake/UseOpenNI.cmake)
 INCLUDE(${PROJECT_SOURCE_DIR}/cmake/UseRealSense.cmake)
 INCLUDE(${PROJECT_SOURCE_DIR}/cmake/UseRealSense2.cmake)
 INCLUDE(${PROJECT_SOURCE_DIR}/cmake/UseUVC.cmake)
+INCLUDE(${PROJECT_SOURCE_DIR}/cmake/UseAzureKinect.cmake)
 
 #############################
 # Specify the project files #
@@ -52,6 +53,7 @@ OpenNIEngine.cpp
 PicoFlexxEngine.cpp
 RealSenseEngine.cpp
 RealSense2Engine.cpp
+AzurekinectEngine.cpp
 )
 
 SET(headers
@@ -67,6 +69,7 @@ OpenNIEngine.h
 PicoFlexxEngine.h
 RealSenseEngine.h
 RealSense2Engine.h
+AzurekinectEngine.h
 )
 
 #############################
@@ -80,9 +83,8 @@ SOURCE_GROUP("" FILES ${sources} ${headers})
 ##########################################
 
 INCLUDE(${PROJECT_SOURCE_DIR}/cmake/SetCUDALibTarget.cmake)
-
 target_link_libraries(InputSource ${OpenCV_LIBS})
-IF(WITH_REALSENSE2)
-    target_link_libraries(InputSource ${realsense2_LIBRARY})
+IF(WITH_AZUREKINECT)
+    TARGET_LINK_LIBRARIES(InputSource
+            /home/zhuzunjie/3thparty/Azure-Kinect-Sensor-SDK/build/bin/libk4a.so.1.1.0)
 ENDIF()
-

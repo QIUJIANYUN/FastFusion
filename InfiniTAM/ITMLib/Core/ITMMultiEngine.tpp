@@ -12,14 +12,15 @@
 
 using namespace ITMLib;
 
-#define DEBUG_MULTISCENE
+//#define DEBUG_MULTISCENE
 //#define DEBUG_LCD
 
 template <typename TVoxel, typename TIndex>
 ITMMultiEngine<TVoxel, TIndex>::ITMMultiEngine(const ITMLibSettings *settings, const ITMRGBDCalib& calib, Vector2i imgSize_rgb, Vector2i imgSize_d)
 {
 	trackNums = 0;
-
+    fkeyframe.open("../../../ferntime.txt");
+    fkeyframe << "frameID submapNum keyframeNum LCDtimeCost(ms)" << endl;
 	loopcloseneighbours = settings->k_LoopCloseNeighbours;
 	maxdistattemptreloc = settings->F_MaxDistatTemptReloc;
 	minDistAddKeyframe  = settings->F_MinDistAddKeyframe;
@@ -63,6 +64,7 @@ ITMMultiEngine<TVoxel, TIndex>::ITMMultiEngine(const ITMLibSettings *settings, c
 	//TODO	tracker->UpdateInitialPose(allData[0]->trackingState);
 
 	view = NULL; // will be allocated by the view builder
+    viewBuilder->InitView(&view);
 
 	relocaliser = new FernRelocLib::Relocaliser<float, ORUtils::Vector4<unsigned char>>(imgSize_d, Vector2f(settings->sceneParams.viewFrustum_min, settings->sceneParams.viewFrustum_max), this->minDistAddKeyframe, numFerns, numDecisionsPerFern, relocType);
 
@@ -80,6 +82,7 @@ ITMMultiEngine<TVoxel, TIndex>::~ITMMultiEngine(void)
 	if (renderState_multiscene != NULL) delete renderState_multiscene;
 
 	kfs.clear();
+	fkeyframe.close();
 
 	delete mGlobalAdjustmentEngine;
 	delete mActiveDataManager;
@@ -153,17 +156,15 @@ struct TodoListEntry {
 };
 
 template <typename TVoxel, typename TIndex>
-ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, cv::Mat *grayimg, ITMIMUMeasurement *imuMeasurement, std::vector<DataReader::IMUData> *relatedIMU, double imgtime)
+ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, double imgtime, cv::Mat *grayimg, ITMIMUMeasurement *imuMeasurement, std::vector<DataReader::IMUData> *relatedIMU)
 {
-
-
-	std::vector<TodoListEntry> todoList;
-	ITMTrackingState::TrackingResult primaryLocalMapTrackingResult;
-
+    TICK("2-updateView");
 	// prepare image and turn it into a depth image
     if (relatedIMU == NULL) viewBuilder->UpdateView(&view, rgbImage, rawDepthImage, settings->useBilateralFilter);
     else viewBuilder->UpdateView(&view, rgbImage, rawDepthImage, settings->useBilateralFilter, grayimg, relatedIMU, imgtime);//depthAlign2Color TODO: BUG collision of eigen and cuda
+    TOCK("2-updateView");
 
+    TICK("3-kalman");
     //pose init with rovio
     Matrix4f P;
     if(relatedIMU != NULL)
@@ -180,7 +181,6 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
         }
         //rovio track
         rovioTracker->Track(*grayimg, Dep, relatedIMU, imgtime);
-
         //set rovio pose to ICP init pose
         Eigen::Matrix4d related_pose;
         related_pose = rovioTracker->T_rel();
@@ -197,8 +197,11 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
         P.m02 = (float)related_pose(2,0);P.m12 = (float)related_pose(2,1);P.m22 = (float)related_pose(2,2);P.m32 = (float)related_pose(2,3);
         P.m03 = (float)related_pose(3,0);P.m13 = (float)related_pose(3,1);P.m23 = (float)related_pose(3,2);P.m33 = (float)related_pose(3,3);
     }
+    TOCK("3-kalman");
 
-
+    //submap todoList
+    std::vector<TodoListEntry> todoList;
+    ITMTrackingState::TrackingResult primaryLocalMapTrackingResult;
     cout << "AllActiveSubmap: " << mActiveDataManager->numActiveLocalMaps() << endl;
 	// find primary data, if available
 	int primaryDataIdx = mActiveDataManager->findPrimaryDataIdx();
@@ -223,7 +226,9 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 	todoList.push_back(TodoListEntry(-1, false, false, false));
 
 
+    double LCDtimeCost = 0.0;
 
+	//track each submap in todoList
 	bool primaryTrackingSuccess = false;
 	for (size_t i = 0; i < todoList.size(); ++i)
 	{
@@ -232,9 +237,12 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 		//   the start of the second pass
 		// - second tracking pass will be about newly detected loop closures, relocalisations, etc.
 
+        TICK("4-LCD");
+
 		//LCD & newly LC
 		if (todoList[i].dataId == -1)
 		{
+            double t1 = cv::getTickCount();
 #ifdef DEBUG_MULTISCENE
 			fprintf(stderr, " Reloc(%i)", primaryTrackingSuccess);
 #endif
@@ -247,15 +255,18 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 
 			//check if relocaliser has fired
 			ORUtils::SE3Pose *pose = primaryLocalMapIdx >= 0 ? mapManager->getLocalMap(primaryLocalMapIdx)->trackingState->pose_d : NULL;
+
 			//没有相似帧，添加为关键帧
-			auto t1 = cv::getTickCount();
+//            TICK("4.1-coding&comparing");
 //			int hasAddedKeyframe = relocaliser->ProcessFrame(view->depth, pose, primaryLocalMapIdx, k_loopcloseneighbours, NN, distances, primaryTrackingSuccess);
 			int hasAddedKeyframe = relocaliser->ProcessFrame(view->depth, rgbImage, pose, primaryLocalMapIdx, loopcloseneighbours, NN, distances, primaryTrackingSuccess);
-			//store lcd image;
-			auto t2 = cv::getTickCount();
-			cout << "LCD cost time: " << (t2-t1)/cv::getTickFrequency() * 1000 << " ms" << endl;
+//            TOCK("4.1-coding&comparing");
+            double t2 = cv::getTickCount();
+            LCDtimeCost = (t2-t1)/cv::getTickFrequency();
+            std::cout << "----distance:" << distances[0] << endl;
 
 #ifdef DEBUG_LCD
+            //store lcd image;
 			if(hasAddedKeyframe >= 0) kfs.push_back(*grayimg);
 #endif
 			//frame not added (-> loop closure) and tracking failed -> we need to relocalise
@@ -268,29 +279,31 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 
                     //用pose约束 剔除outlier
 					ITMLocalMap<TVoxel,TIndex> *candidateLoopMap = mapManager->getLocalMap(keyframe.sceneIdx);
-					Matrix4f candidateM = keyframe.pose.GetM() * candidateLoopMap->estimatedGlobalPose.GetM();
-                    Matrix4f primaryM = pose->GetM() * (mapManager->getLocalMap(primaryLocalMapIdx))->estimatedGlobalPose.GetM();
+
+					std::cout << "----sceneIdx of the temptreloc frame:" << keyframe.sceneIdx << endl;
+
+
+					Matrix4f candidateM = keyframe.pose.GetM() * candidateLoopMap->estimatedGlobalPose.GetM(); // the pose of the detected loop or reloc keyframe (global coordi.)
+                    Matrix4f primaryM = pose->GetM() * (mapManager->getLocalMap(primaryLocalMapIdx))->estimatedGlobalPose.GetM(); //the estimated camera pose of the current frame (global coordi.)
+
+                    // check whether the loop is outlier (relative angle > 45)
                     Matrix4f inv_primaryM; primaryM.inv(inv_primaryM);
-                    Matrix4f relativeM = candidateM * inv_primaryM;
+                    Matrix4f relativeM = candidateM * inv_primaryM; // current frame to the loop/reloc
                     Eigen::Matrix3f relativeR;
                     relativeR(0,0) = relativeM.m00; relativeR(0,1) = relativeM.m10; relativeR(0,2) = relativeM.m20;
                     relativeR(1,0) = relativeM.m01; relativeR(1,1) = relativeM.m11; relativeR(1,2) = relativeM.m21;
                     relativeR(2,0) = relativeM.m02; relativeR(2,1) = relativeM.m12; relativeR(2,2) = relativeM.m22;
                     Eigen::AngleAxisf angleAxisR(relativeR);
-                    if(angleAxisR.angle() > 3.14/2){
+                    if(angleAxisR.angle() > 3.14/4){
                         cout << "Find a outlier, relative angle is " << angleAxisR.angle() << endl;
                         continue;
                     }
 
-
                     //设置边
                     int newDataIdx = mActiveDataManager->initiateNewLink(keyframe.sceneIdx, keyframe.pose, (primaryLocalMapIdx < 0));
-                    //show lcd image
-//                    cv::imshow("LCD keyframe", kfs[NN[j]]);
-//                    cv::waitKey(0);
 					if (newDataIdx >= 0)
 					{
-						cout << "!!!find a relocalisation or loop closure" << endl;
+						cout << "!!!find loop" << endl;
 						TodoListEntry todoItem(newDataIdx, true, false, true);
 						todoItem.preprepare = true;
 						todoList.push_back(todoItem);
@@ -305,6 +318,9 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 
 			continue;
 		}
+        TOCK("4-LCD");
+
+
 
 		ITMLocalMap<TVoxel, TIndex> *currentLocalMap = NULL;
 		int currentLocalMapIdx = mActiveDataManager->getLocalMapIndex(todoList[i].dataId);
@@ -440,8 +456,9 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
     //将优化好的pose赋给各个localmap
 	mGlobalAdjustmentEngine->retrieveNewEstimates(*mapManager);
 
-
-	cout<< "total submap num: " << mapManager->numLocalMaps() << endl;
+    cout << "----Keyframe number:" << relocaliser->GetKeyframeNum()<<endl;
+    cout<< "----Total submap number: " << mapManager->numLocalMaps() << endl;
+    fkeyframe << trackNums << " " << mapManager->numLocalMaps() << " " << relocaliser->GetKeyframeNum() << " " << LCDtimeCost *1e3 << endl;
 	trackNums++;
 
 	return primaryLocalMapTrackingResult;

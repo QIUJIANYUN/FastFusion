@@ -12,6 +12,7 @@
 
 namespace InputSource {
 
+    // --- Enum which public dataset is to be loaded:
 	class ImageSourceEngine
 	{
 	public:
@@ -138,6 +139,7 @@ namespace InputSource {
 		void getImages(ITMUChar4Image *rgb, ITMShortImage *rawDepth);
 		Vector2i getDepthImageSize(void) const;
 		Vector2i getRGBImageSize(void) const;
+        void getRelatedIMU(vector<DataReader::IMUData> &relatedIMU);//获取上一帧到当前帧之间的IMU
 	};
 
 	class CalibSource : public BaseImageSourceEngine
@@ -207,6 +209,9 @@ namespace InputSource {
 		char rgbImageMask[BUF_SIZE];
 		char depthImageMask[BUF_SIZE];
 		char IMU[BUF_SIZE];
+		string color_dir;
+		string depth_dir;
+		string imu_dir;
 
 		vector<DataReader::ICell> vColorList;
 		vector<DataReader::ICell> vDepthList;
@@ -223,7 +228,7 @@ namespace InputSource {
 		int totalFrameNo;
 	public:
 
-		DatasetReader(const char *calibFilename, const char *rgbImageMask, const char *depthImageMask, const char *rgbImageTimestamp, const char *imuTimestamp);
+        DatasetReader(const string cal, const string dir, int dm);
 		~DatasetReader();
 
 		bool hasMoreImages(void) const;

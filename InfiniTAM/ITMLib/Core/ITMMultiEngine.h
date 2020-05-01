@@ -66,7 +66,7 @@ namespace ITMLib
 		std::vector<cv::Mat> kfs;
 
 		int trackNums;
-
+        ofstream fkeyframe;
 		//----LC parameters
         // number of nearest neighbours to find in the loop closure detection
         int loopcloseneighbours;
@@ -90,7 +90,7 @@ namespace ITMLib
 		ITMTrackingState* GetTrackingState(void);
 
 		/// Process a frame with rgb and depth images and (optionally) a corresponding imu measurement
-		ITMTrackingState::TrackingResult ProcessFrame(ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, cv::Mat *grayimg = NULL, ITMIMUMeasurement *imuMeasurement = NULL, std::vector<DataReader::IMUData> *relatedIMU = NULL, double imgtime = 0);
+		ITMTrackingState::TrackingResult ProcessFrame(ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, double imgtime, cv::Mat *grayimg = NULL, ITMIMUMeasurement *imuMeasurement = NULL, std::vector<DataReader::IMUData> *relatedIMU = NULL);
 
 		/// Get a result image as output
 		Vector2i GetImageSize(void) const;
@@ -120,6 +120,7 @@ namespace ITMLib
 
 		//void writeFullTrajectory(void) const;
 		//void SaveSceneToMesh(const char *objFileName);
+
 
 		/** \brief Constructor
 			Ommitting a separate image size for the depth images

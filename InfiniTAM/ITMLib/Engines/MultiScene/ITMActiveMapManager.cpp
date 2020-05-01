@@ -42,7 +42,7 @@ int ITMActiveMapManager::initiateNewLink(int localMapId, const ORUtils::SE3Pose 
 {
 	static const bool ensureUniqueLinks = true;
 
-	// make sure only one relocalisation per local map is attempted at a time
+	// make sure only one loop/relocalisation per local map is attempted at a time, TODO why?
 	if (ensureUniqueLinks) {
 		for (size_t i = 0; i < activeData.size(); ++i) {
 			if (activeData[i].localMapIndex == localMapId) return -1;

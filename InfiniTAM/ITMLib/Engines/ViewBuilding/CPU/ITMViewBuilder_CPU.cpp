@@ -11,22 +11,26 @@ using namespace ORUtils;
 ITMViewBuilder_CPU::ITMViewBuilder_CPU(const ITMRGBDCalib& calib):ITMViewBuilder(calib) { }
 ITMViewBuilder_CPU::~ITMViewBuilder_CPU(void) { }
 
-void ITMViewBuilder_CPU::UpdateView(ITMView **view_ptr, ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, bool useBilateralFilter, bool modelSensorNoise, bool storePreviousImage)
-{ 
-	if (*view_ptr == NULL)
-	{
-		*view_ptr = new ITMView(calib, rgbImage->noDims, rawDepthImage->noDims, false);
-		if (this->shortImage != NULL) delete this->shortImage;
-		this->shortImage = new ITMShortImage(rawDepthImage->noDims, true, false);
-		if (this->floatImage != NULL) delete this->floatImage;
-		this->floatImage = new ITMFloatImage(rawDepthImage->noDims, true, false);
+void ITMViewBuilder_CPU::InitView(ITMView **view_ptr, bool modelSensorNoise)
+{
+    if (*view_ptr == NULL)
+    {
+        *view_ptr = new ITMView(calib, calib.intrinsics_rgb.imgSize, calib.intrinsics_d.imgSize, false);
+        if (this->shortImage != NULL) delete this->shortImage;
+        this->shortImage = new ITMShortImage(calib.intrinsics_d.imgSize, true, false);
+        if (this->floatImage != NULL) delete this->floatImage;
+        this->floatImage = new ITMFloatImage(calib.intrinsics_d.imgSize, true, false);
 
-		if (modelSensorNoise)
-		{
-			(*view_ptr)->depthNormal = new ITMFloat4Image(rawDepthImage->noDims, true, false);
-			(*view_ptr)->depthUncertainty = new ITMFloatImage(rawDepthImage->noDims, true, false);
-		}
-	}
+        if (modelSensorNoise)
+        {
+            (*view_ptr)->depthNormal = new ITMFloat4Image(calib.intrinsics_d.imgSize, true, false);
+            (*view_ptr)->depthUncertainty = new ITMFloatImage(calib.intrinsics_d.imgSize, true, false);
+        }
+    }
+}
+
+void ITMViewBuilder_CPU::UpdateView(ITMView **view_ptr, ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, bool useBilateralFilter, bool modelSensorNoise, bool storePreviousImage)
+{
 	ITMView *view = *view_ptr;
 
 	if (storePreviousImage)
@@ -69,21 +73,6 @@ void ITMViewBuilder_CPU::UpdateView(ITMView **view_ptr, ITMUChar4Image *rgbImage
 
 void ITMViewBuilder_CPU::UpdateView(ITMView **view_ptr, ITMUChar4Image *rgbImage, ITMShortImage *depthImage, bool useBilateralFilter, ITMIMUMeasurement *imuMeasurement, bool modelSensorNoise, bool storePreviousImage)
 {
-	if (*view_ptr == NULL)
-	{
-		*view_ptr = new ITMViewIMU(calib, rgbImage->noDims, depthImage->noDims, false);
-		if (this->shortImage != NULL) delete this->shortImage;
-		this->shortImage = new ITMShortImage(depthImage->noDims, true, false);
-		if (this->floatImage != NULL) delete this->floatImage;
-		this->floatImage = new ITMFloatImage(depthImage->noDims, true, false);
-
-		if (modelSensorNoise)
-		{
-			(*view_ptr)->depthNormal = new ITMFloat4Image(depthImage->noDims, true, false);
-			(*view_ptr)->depthUncertainty = new ITMFloatImage(depthImage->noDims, true, false);
-		}
-	}
-
 	ITMViewIMU* imuView = (ITMViewIMU*)(*view_ptr);
 	imuView->imu->SetFrom(imuMeasurement);
 
@@ -94,7 +83,6 @@ void ITMViewBuilder_CPU::UpdateView(ITMView **view_ptr, ITMUChar4Image *rgbImage
 
 void ITMViewBuilder_CPU::UpdateView(ITMView **view_ptr, ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, bool useBilateralFilter, cv::Mat *grayimg, std::vector<DataReader::IMUData> *relatedIMU, double imgtime, bool modelSensorNoise, bool storePreviousImage)
 {
-
 }
 
 void ITMViewBuilder_CPU::ConvertDisparityToDepth(ITMFloatImage *depth_out, const ITMShortImage *depth_in, const ITMIntrinsics *depthIntrinsics,

@@ -44,6 +44,11 @@ FastFusionTracker::FastFusionTracker(Vector2i imgSize, TrackerIterationType *tra
 
     //roviotracker
 //    roviotracker = new RovioTracker();
+
+    //save ICP
+    string saveicp = "../../../ICP.txt";
+    ICP = fopen(saveicp.c_str(), "wb");
+
 }
 
 FastFusionTracker::~FastFusionTracker(void)
@@ -255,6 +260,7 @@ void FastFusionTracker::TrackCamera(ITMTrackingState *trackingState, const ITMVi
     float f_old = 1e10, f_new;
     int noValidPoints_new;
     int noValidPoints_old = 0;
+    int total_it_count = 0;
 
     float hessian_good[6 * 6], hessian_new[6 * 6], A[6 * 6];
     float nabla_good[6], nabla_new[6];
@@ -262,6 +268,7 @@ void FastFusionTracker::TrackCamera(ITMTrackingState *trackingState, const ITMVi
 
     for (int i = 0; i < 6 * 6; ++i) hessian_good[i] = 0.0f;
     for (int i = 0; i < 6; ++i) nabla_good[i] = 0.0f;
+
 
     for (int levelId = viewHierarchy->GetNoLevels() - 1; levelId >= 0; levelId--)
     {
@@ -274,7 +281,9 @@ void FastFusionTracker::TrackCamera(ITMTrackingState *trackingState, const ITMVi
         noValidPoints_old = 0;
         float lambda = 1.0;
 
-        for (int iterNo = 0; iterNo < noIterationsPerLevel[levelId]; iterNo++)
+//        cout << "levelId" << levelId << endl;
+        int iterNo = 0;
+        for (; iterNo < noIterationsPerLevel[levelId]; iterNo++)
         {
             // evaluate error function and gradients
             noValidPoints_new = this->ComputeGandH(f_new, nabla_new, hessian_new, approxInvPose);
@@ -304,10 +313,15 @@ void FastFusionTracker::TrackCamera(ITMTrackingState *trackingState, const ITMVi
             trackingState->pose_d->Coerce();
             approxInvPose = trackingState->pose_d->GetInvM();
 
+//            cout << "iterNo" << iterNo << endl;
             // if step is small, assume it's going to decrease the error and finish
             if (HasConverged(step)) break;
         }
+        total_it_count +=iterNo+1;
     }
+
+    std::fprintf(ICP, "%i %i %f\n", total_it_count, noValidPoints_old, f_old);//save icp info.
+
     this->UpdatePoseQuality(noValidPoints_old, hessian_good, f_old);
 }
 

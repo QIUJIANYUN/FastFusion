@@ -24,6 +24,11 @@ namespace FernRelocLib
 		void SaveToFile(const std::string &framesFileName) const;
 		void LoadFromFile(const std::string &filename);
 
+		int GetEntryNum()
+        {
+            return mTotalEntries;
+        }
+
 	private:
 		int mTotalEntries;
 

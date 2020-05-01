@@ -63,7 +63,6 @@ namespace ITMLib
 		std::string depthSaveDir;
         std::string shotImageDir;
         bool saveTraj;
-        std::string traj_save_dir;
 
         //parameters
         std::string rovio_filter_config;

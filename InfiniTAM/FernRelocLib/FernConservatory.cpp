@@ -120,12 +120,12 @@ void FernConservatory::computeCode(const ORUtils::Image<float> *depthImg, const 
 		//d
 		const FernTester *tester = &mEncoders[f * mNumDecisions + mNumDecisions-1];
 		float val = depthData[locId];
-		if (val <= 0.01f){
-			codeFragments[f] = -1;
-			continue;
-		}
-		else codeFragments[f] |= ((val < tester->threshold) ? 0 : 1) << (mNumDecisions-1);
-
+//		if (val <= 0.01f){
+//			codeFragments[f] = -1;
+//			continue;
+//		}
+//		else codeFragments[f] |= ((val < tester->threshold) ? 0 : 1) << (mNumDecisions-1);
+        codeFragments[f] |= ((val < tester->threshold) ? 0 : 1) << (mNumDecisions-1);
 		//rgb
 		for (int d = 0; d < mNumDecisions-1; ++d)
 		{

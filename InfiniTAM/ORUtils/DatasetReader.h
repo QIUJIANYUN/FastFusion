@@ -13,8 +13,19 @@
 
 using namespace std;
 namespace DataReader {
+
+    enum DatasetMode
+    {
+        ICL,
+        TUM,
+        MyZR300,
+        MyD435i,
+        MyAzureKinect,
+
+    };
+
     typedef struct ImageList {
-        double timeStamp;
+        double timeStamp; //second
         string imgName;
     } ICell;
 
@@ -24,7 +35,7 @@ namespace DataReader {
 //        Eigen::Quaterniond rotation_Q;
 //    } GT;
 
-    void loadImageList(const char *imagePath, std::vector<ICell> &iListData);
+    void loadImageList(const char *imgPath, const char *associate, std::vector<ICell> &colorList, std::vector<ICell> &depthList, int datasetMode);
 
     void loadIMUFile(const char *imuPath, std::vector<IMUData> &vimuData);
 

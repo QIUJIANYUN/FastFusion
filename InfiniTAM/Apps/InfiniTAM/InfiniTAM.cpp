@@ -13,6 +13,7 @@
 #include "../../InputSource/RealSenseEngine.h"
 #include "../../InputSource/LibUVCEngine.h"
 #include "../../InputSource/RealSense2Engine.h"
+#include "../../InputSource/AzurekinectEngine.h"
 #include "../../InputSource/FFMPEGReader.h"
 #include "../../ITMLib/ITMLibDefines.h"
 #include "../../ITMLib/Core/ITMBasicEngine.h"
@@ -22,50 +23,39 @@ using namespace InfiniTAM::Engine;
 using namespace InputSource;
 using namespace ITMLib;
 
-/** Create a default source of depth images from a list of command line
-    arguments. Typically, @para arg1 would identify the calibration file to
-    use, @para arg2 the colour images, @para arg3 the depth images and
-    @para arg4 the IMU images. If images are omitted, some live sources will
-    be tried.
-*/
-static void CreateDefaultImageSource(ImageSourceEngine* & imageSource, const char *arg1 = NULL, const char *arg2 = NULL, const char *arg3 = NULL, const char *arg4 = NULL, const char *arg5 = NULL)
+static void OnlineReader(ImageSourceEngine* & imageSource, const char *arg1 = NULL)
 {
 	const char *calibFile = arg1;
-	const char *filename1 = arg2;
-	const char *filename2 = arg3;
-	const char *sequence = arg4;
-	const char *filename_imu = arg5;
-
-	std::fstream _file;
-	_file.open(filename_imu,ios::in);
-	if(!_file) filename_imu = "";
-
 	printf("using calibration file: %s\n", calibFile);
-
-	if ((imageSource == NULL) && (filename2 != NULL))
-	{
-		printf("USE file input: \n use using rgb images: %s\n using depth images: %s\n", filename1, filename2);
-		if(filename_imu != NULL)
-		{
-			printf("using zr300 data: %s\n", filename_imu);
-			imageSource = new DatasetReader(calibFile, filename1, filename2, sequence, filename_imu);
-		}
-	}
-
-    if (imageSource == NULL)
-	{
-		printf("trying RealSense device\n");
-		imageSource = new RealSenseEngine(calibFile);
-		if (imageSource->getDepthImageSize().x == 0)
-		{
-			delete imageSource;
-			imageSource = NULL;
-		}
-	}
 
     if (imageSource == NULL)
     {
-        printf("trying RealSense device\n");
+        printf("trying Azurekincet device\n");
+        imageSource = new AzureKinectEngine(calibFile);
+        if (imageSource->getDepthImageSize().x == 0)
+        {
+            delete imageSource;
+            imageSource = NULL;
+        }
+    }
+
+
+    if (imageSource == NULL)
+    {
+        printf("trying ZR300 device\n");
+        imageSource = new RealSenseEngine(calibFile);
+        if (imageSource->getDepthImageSize().x == 0)
+        {
+            delete imageSource;
+            imageSource = NULL;
+        }
+    }
+
+
+
+    if (imageSource == NULL)
+    {
+        printf("trying D435i device\n");
         imageSource = new RealSense2Engine(calibFile);
         if (imageSource->getDepthImageSize().x == 0)
         {
@@ -73,6 +63,8 @@ static void CreateDefaultImageSource(ImageSourceEngine* & imageSource, const cha
             imageSource = NULL;
         }
     }
+
+
 
     //    if (imageSource == NULL)
 //	{
@@ -160,32 +152,24 @@ try
 	string depth_dir;
 	string sequence_dir;
 	string imu_dir;
-	int arg = 1;
-	bool online_input = false;
 
-	do{
-		if (argv[arg] != NULL) cal = argv[arg]; else break;
-		++arg;
-		if (argv[arg] != NULL) dir = argv[arg]; else break;
-		++arg;
-	} while (false);
 
-	if(arg == 3){
-		color_dir = string(dir) + "/color";
-		depth_dir = string(dir) + "/depth";
-		sequence_dir = string(dir) + "/TIMESTAMP.txt";
-		imu_dir = string(dir) + "/IMU.txt";
-	} else{
-	    online_input = true;
-	}
+    printf("initialising ...\n");
+    ImageSourceEngine *imageSource = NULL;
 
-	printf("initialising ...\n");
-	ImageSourceEngine *imageSource = NULL;
-
-	if(!online_input)
-	    CreateDefaultImageSource(imageSource, cal, color_dir.c_str(), depth_dir.c_str(),sequence_dir.c_str(),imu_dir.c_str());
-    else
-        CreateDefaultImageSource(imageSource, cal);
+    if(argc == 2){
+        cal = argv[1];
+        OnlineReader(imageSource, cal);
+    }
+    else if(argc == 4){
+        //offline image loader
+        string cal = string(argv[1]);   string dir = string(argv[2]);   int dm = std::atoi(argv[3]);
+        imageSource = new DatasetReader(cal, dir, dm);
+    }
+    else{
+        printf("Please input 'calibration file' for online input,\n or 'calibration file, sequence dir, dataset mode(ICL:0,TUM/BADSLAM:1,MyZR300:2,MyD435i:3,MyAzureKinect:4)' for offline input.");
+        return 0;
+    }
 
 	if (imageSource==NULL)
 	{

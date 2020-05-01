@@ -11,7 +11,9 @@
 
 #include "../../ORUtils/NVTimer.h"
 #include "../../ORUtils/FileUtils.h"
+#include "../../ORUtils/Stopwatch.h"
 
+#include <string.h>
 using namespace ITMLib;
 
 template <typename TVoxel, typename TIndex>
@@ -21,10 +23,28 @@ ITMBasicEngine<TVoxel,TIndex>::ITMBasicEngine(const ITMLibSettings *settings, co
     if(this->saveDepth)
         this->depthSavedir = settings->depthSaveDir;
 
+    fid=1;
     this->saveTrajectory = settings->saveTraj;
     if(this->saveTrajectory){
-        string savedir = settings->traj_save_dir;
-        trajectory = fopen(savedir.c_str(), "wb");
+        //init files
+        int i=0;
+        bool init = false;
+        while(!init)
+        {
+            i++;
+            string name = "../../../" + std::to_string(i) + ".txt";
+            fstream _file; _file.open(name, ios::in);
+            if(_file) continue;
+            else
+            {
+                trajectory = fopen(name.c_str(), "wb");
+                init = true;
+            }
+        }
+        string speedsavedir = "../../../speed.txt";
+        string depthsavedir = "../../../depth.txt";
+        speed = fopen(speedsavedir.c_str(), "wb");
+        averagedepth = fopen(depthsavedir.c_str(), "wb");
     }
 
     minDistAddKeyframe = settings->F_MinDistAddKeyframe;
@@ -34,6 +54,15 @@ ITMBasicEngine<TVoxel,TIndex>::ITMBasicEngine(const ITMLibSettings *settings, co
 
     depth2imu.SetFrom(calib.trafo_depth_to_imu.calib);
 
+    Eigen::Matrix3f imu2cam0;
+    imu2cam0<< -0.99987545,  0.01531,     0.0038332,
+                -0.01531016, -0.99988279, -0.00001215,
+                0.00383257, -0.00007083,  0.99999265;
+    Eigen::Vector3f ttt;
+    ttt << 0.09357779, 0.00965728, -0.00158094;
+    cout << imu2cam0.inverse() * ttt << endl;
+    Eigen::Quaternionf rrr(imu2cam0);
+    std::cout << rrr.x() << " " << rrr.y() << " "<< rrr.z() << " "<< rrr.w()<<std::endl;
 	this->settings = settings;
 
 	if ((imgSize_d.x == -1) || (imgSize_d.y == -1)) imgSize_d = imgSize_rgb;
@@ -69,6 +98,7 @@ ITMBasicEngine<TVoxel,TIndex>::ITMBasicEngine(const ITMLibSettings *settings, co
 	tracker->UpdateInitialPose(trackingState);
 
 	view = NULL; // will be allocated by the view builder
+	viewBuilder->InitView(&view);
 	
 	if (settings->behaviourOnFailure == settings->FAILUREMODE_RELOCALISE)
 		relocaliser = new FernRelocLib::Relocaliser<float, ORUtils::Vector4<unsigned char>>(imgSize_d, Vector2f(settings->sceneParams.viewFrustum_min, settings->sceneParams.viewFrustum_max), minDistAddKeyframe, numFerns, numDecisionsPerFern, relocType);
@@ -88,6 +118,7 @@ template <typename TVoxel, typename TIndex>
 ITMBasicEngine<TVoxel,TIndex>::~ITMBasicEngine()
 {
     fclose(trajectory);
+    fclose(speed);
 
 	delete renderState_live;
 	if (renderState_freeview != NULL) delete renderState_freeview;
@@ -260,14 +291,17 @@ static void QuaternionFromRotationMatrix(const double *matrix, double *q) {
 }
 
 template <typename TVoxel, typename TIndex>
-ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, cv::Mat *grayimg, ITMIMUMeasurement *imuMeasurement, std::vector<DataReader::IMUData> *relatedIMU, double imgtime)
+ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, double imgtime, cv::Mat *grayimg, ITMIMUMeasurement *imuMeasurement, std::vector<DataReader::IMUData> *relatedIMU)
 {
 	// prepare image and turn it into a depth image
+	TICK("2-updateView");
 	if (relatedIMU == NULL) viewBuilder->UpdateView(&view, rgbImage, rawDepthImage, settings->useBilateralFilter);
 	else viewBuilder->UpdateView(&view, rgbImage, rawDepthImage, settings->useBilateralFilter, grayimg, relatedIMU, imgtime);//depthAlign2Color TODO: BUG collision of eigen and cuda
+    TOCK("2-updateView");
 
-	if(saveDepth)
-	{
+    //filtered depth
+    if(saveDepth)
+    {
         //SAVE filetered depth(ZR300)
         float* pre_depth = view->depth->GetData(MEMORYDEVICE_CPU);
         cv::Mat post_depth = cv::Mat::zeros(480,640,CV_16U); // 没有考虑延迟
@@ -284,33 +318,43 @@ ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITM
         compression_params.push_back(9);
         cv::imwrite((this->depthSavedir + to_string((int)round(imgtime)) + ".png"), post_depth, compression_params);
         turnOffMainProcessing();
-	}
+    }
+
 
     if (!mainProcessingActive) return ITMTrackingState::TRACKING_FAILED;
 
     // tracking
     ORUtils::SE3Pose oldPose(*(trackingState->pose_d));
 
+
     //init pose with rovio
     if(relatedIMU != NULL)
     {
+        TICK("3-copydepth");
         float* dep = view->aligned_depth->GetData(MEMORYDEVICE_CPU);
-        cv::Mat Dep = cv::Mat::zeros(480,640,CV_64FC1); // 没有考虑延迟
-        for(int i=0;i<480;i++){
-            int id = i*640;
-            for(int j=0;j<640;j++) {
+        cv::Mat Dep = cv::Mat::zeros(rawDepthImage->noDims.y,rawDepthImage->noDims.x,CV_64FC1); // 没有考虑延迟
+        for(int i=0;i<rawDepthImage->noDims.y;i++){
+            int id = i*rawDepthImage->noDims.x;
+            for(int j=0;j<rawDepthImage->noDims.x;j++) {
                 int id1 = id + j;
                 if ((dep[id1]) > 1e-3)
                     Dep.at<double>(i, j) = (double)(dep[id1]);
             }
         }
+        TOCK("3-copydepth");
+        TICK("4-kalman");
         //rovio track
         rovioTracker->Track(*grayimg, Dep, relatedIMU, imgtime); // TODO BUG 当depth大部分被遮挡时,系统崩溃;本根原因:rovio错误的pose给icp赋值.
         setPose(rovioTracker->T_rel());
+        TOCK("4-kalman");
     }
 
-	if (trackingActive) trackingController->Track(trackingState, view);
 
+    TICK("5-icp");
+	if (trackingActive) trackingController->Track(trackingState, view);
+    TOCK("5-icp");
+
+    TICK("6-else");
 	ITMTrackingState::TrackingResult trackerResult = ITMTrackingState::TRACKING_GOOD;
 	switch (settings->behaviourOnFailure) {
 	case ITMLibSettings::FAILUREMODE_RELOCALISE:
@@ -383,9 +427,47 @@ ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITM
 	}
 	else *trackingState->pose_d = oldPose;
 
+	TOCK("6-else");
+
+	//SAVE REFINED DEPTH //BUG
+/*    if(saveDepth)
+    {
+        auto pointcloud = new ORUtils::Image<Vector4f>(rawDepthImage->noDims.y * rawDepthImage->noDims.x, MEMORYDEVICE_CPU);
+
+        pointcloud->SetFrom(trackingState->pointCloud->locations, ORUtils::MemoryBlock<Vector4f>::CUDA_TO_CPU);
+        Vector4f* pre_depth = pointcloud->GetData(MEMORYDEVICE_CPU);
+
+        cv::Mat post_depth = cv::Mat::zeros(rawDepthImage->noDims.y,rawDepthImage->noDims.x,CV_16U); // 没有考虑延迟
+        for(int i=0;i<rawDepthImage->noDims.y;i++){
+            int id = i*rawDepthImage->noDims.x;
+            for(int j=0;j<rawDepthImage->noDims.x;j++) {
+                int id1 = id + j;
+                if ((pre_depth[id1].z) > 1e-3)
+                    post_depth.at<ushort>(i, j) = (ushort)(pre_depth[id1].z *1000.0f);
+            }
+        }
+        vector<int>compression_params;
+        compression_params.push_back(CV_IMWRITE_PNG_COMPRESSION);
+        compression_params.push_back(9);
+        cv::imwrite((this->depthSavedir + to_string((int)round(imgtime)) + ".png"), post_depth, compression_params);
+//        turnOffMainProcessing();
+
+    }*/
+
+
 	//save camera trajectory.
     if(this->saveTrajectory) {
         const ORUtils::SE3Pose *p = trackingState->pose_d;
+/*
+        Vector3f t1, t2, r1, r2;
+        oldPose.GetParams(t1, r1);
+        p->GetParams(t2, r2);
+        float dt,dr;
+        dt = (t2.x - t1.x)*(t2.x - t1.x) + (t2.y - t1.y)*(t2.y - t1.y) + (t2.z - t1.z)*(t2.z - t1.z);
+        dr = (r2.x - r1.x)*(r2.x - r1.x) + (r2.y - r1.y)*(r2.y - r1.y) + (r2.z - r1.z)*(r2.z - r1.z);
+        std::fprintf(speed, "%f %f %f\n", imgtime, sqrt(dt)*30, sqrt(dr)*30);
+        std::fprintf(trajectory, "%f %f %f %f %f %f %f\n", imgtime, t2.x, t2.y, t2.z, r2.x, r2.y, r2.z);
+*/
         double t[3];
         double R[9];
         double q[4];
@@ -394,8 +476,12 @@ ITMTrackingState::TrackingResult ITMBasicEngine<TVoxel,TIndex>::ProcessFrame(ITM
             for (int c = 0; c < 3; ++c)
                 R[r * 3 + c] = p->GetM().m[c * 4 + r];
         QuaternionFromRotationMatrix(R, q);
-        std::fprintf(trajectory, "%f %f %f %f %f %f %f %f\n", imgtime, t[0], t[1], t[2], q[1], q[2], q[3], q[0]);
+//        std::fprintf(trajectory, "%i %f %f %f %f %f %f %f\n", fid, t[0], -t[1], t[2], q[1], q[2], q[3], q[0]);//icl
+        std::fprintf(trajectory, "%f %f %f %f %f %f %f %f\n", imgtime, t[0], t[1], t[2], q[1], q[2], q[3], q[0]);//tum
+        std::fprintf(averagedepth, "%f %f\n", fid, view->average_depth);
+        fid +=1;
     }
+
     
     return trackerResult;
 }

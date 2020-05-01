@@ -32,7 +32,7 @@ namespace FernRelocLib
 	public:
 		Relocaliser(ORUtils::Vector2<int> imgSize, ORUtils::Vector2<float> range, float harvestingThreshold, int numFerns, int numDecisionsPerFern, RelocType type)
 		{
-			static const int levels = 5;
+			static const int levels = 4;
             relocaType = type;
 			switch (type)
 			{
@@ -47,7 +47,7 @@ namespace FernRelocLib
 
 			    default:  std::cout<< "choose relocation type: depth, color, both"<<std::endl;
 			}
-
+            encoding->SaveToFile("../../ferns.txt");
 			relocDatabase = new RelocDatabase(numFerns, encoding->getNumCodes());
 			poseDatabase = new PoseDatabase();
 			keyframeHarvestingThreshold = harvestingThreshold;
@@ -113,6 +113,7 @@ namespace FernRelocLib
             int codeLength = encoding->getNumFerns();
             char *code = new char[codeLength];
 
+
 		    switch (relocaType)
             {
                 case DepthOnly:{
@@ -130,7 +131,8 @@ namespace FernRelocLib
                     filterSubsample(rgbImage1, rgbImage2); // 160x120
                     filterSubsample(rgbImage2, rgbImage1); // 80x60
                     filterSubsample(rgbImage1, rgbImage2); // 40x30
-                    encoding->computeCode(rgbImage2, code);
+                    filterGaussian(rgbImage2, rgbImage1, 2.5f);
+                    encoding->computeCode(rgbImage1, code);
                 }
                 case Both:{
                     // downsample and preprocess image => depthImage1
@@ -144,6 +146,7 @@ namespace FernRelocLib
                     filterSubsample(rgbImage1, rgbImage2); // 160x120
                     filterSubsample(rgbImage2, rgbImage1); // 80x60
                     filterSubsample(rgbImage1, rgbImage2); // 40x30
+//                    filterGaussian(rgbImage2, rgbImage1, 2.5f);
                     encoding->computeCode(depthImage1, rgbImage2, code);
                 }
             }
@@ -163,14 +166,10 @@ namespace FernRelocLib
 			if (harvestKeyframes)
 			{
 				if (similarFound == 0)  ret = relocDatabase->addEntry(code);
-                //RGB不适用于当前的收获阈值，当前的阈值对rgb来说过大，会频繁的认为是相同帧
 				else if (distances[0] > keyframeHarvestingThreshold)    ret = relocDatabase->addEntry(code);
 
 				if (ret >= 0) poseDatabase->storePose(ret, *pose, sceneId);
 			}
-
-//            cout<< ret <<endl;
-
 			// cleanup and return
 			delete[] code;
 			if (releaseDistances) delete[] distances;
@@ -215,6 +214,11 @@ namespace FernRelocLib
 			relocDatabase->LoadFromFile(frameCodeFilePath);
 			poseDatabase->LoadFromFile(posesFilePath);
 		}
+
+        int GetKeyframeNum()
+        {
+            return relocDatabase->GetEntryNum();
+        }
 	};
 }
 

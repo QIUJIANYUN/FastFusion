@@ -1,0 +1,20 @@
+%YAML:1.0
+
+###### Camera Calibration File For Cam 0 of ZR300 Datasets ######
+image_width: 739
+image_height: 458
+camera_name: cam0
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [726.287, 0.0, 354.649, 0.0, 726.287, 186.465, 0.0, 0.0, 1.0]
+distortion_model: plumb_bob
+distortion_coefficients:
+  rows: 1
+  cols: 5
+  data:  [0.2046, -0.5256, -0.0021, -0.0005, 0.0]
+
+
+
+
+

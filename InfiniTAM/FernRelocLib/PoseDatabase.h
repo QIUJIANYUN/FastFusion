@@ -15,7 +15,7 @@ namespace FernRelocLib
 		{
 			PoseInScene(void) {}
 			PoseInScene(const ORUtils::SE3Pose & _pose, int _sceneIdx) : pose(_pose), sceneIdx(_sceneIdx) {}
-			ORUtils::SE3Pose pose;
+			ORUtils::SE3Pose pose; //the keyframe pose is in the submap coordinate, not the global coordinate
 			int sceneIdx;
 		};
 

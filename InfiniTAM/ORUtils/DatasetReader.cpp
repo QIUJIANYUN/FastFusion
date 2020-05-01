@@ -3,30 +3,91 @@
 //
 #include "DatasetReader.h"
 #include <iostream>
+#include <dirent.h>
 namespace DataReader {
-    void loadImageList(const char *imagePath, std::vector<ICell> &iListData) {
+    void loadImageList(const char *imgPath, const char *associate, std::vector<ICell> &colorList, std::vector<ICell> &depthList, int datasetMode) {
+
         ifstream inf;
-        inf.open(imagePath, ifstream::in);
-        const int cnt = 2;          // 你要输出的个数
+        inf.open(associate, ifstream::in);
 
         string line;
-
         size_t comma = 0;
         size_t comma2 = 0;
         ICell temp;
-        getline(inf, line);
-        while (!inf.eof()) {
-            getline(inf, line);
+        int number_of_frames = 0;
 
-            comma = line.find(',', 0);
-            string temp1 = line.substr(0, comma);
-            temp.timeStamp = (double) atof(temp1.c_str());
+        switch(datasetMode){
+            case DatasetMode::ICL :
+                DIR *dp;
+                struct dirent *dirp;
 
-            comma2 = line.find(',', comma + 1);
-            temp.imgName = line.substr(comma + 1, comma2 - comma - 1).c_str();
-            if(temp.timeStamp < 1e-3) continue;
-            iListData.push_back(temp);
+                if((dp  = opendir(imgPath)) != NULL){
+                    while ((dirp = readdir(dp)) != NULL) {
+                        std::string name = std::string(dirp->d_name);
 
+                        if (name != "." && name != "..")
+                            number_of_frames++;
+                    }
+                    closedir(dp);
+                }
+                for(int count = 0; count < number_of_frames-1; count++){
+                    temp.timeStamp = double(count) * double(1.0/30.0);
+                    if(temp.timeStamp < 1e-3) continue;
+                    temp.imgName = to_string(count) + ".png";
+                    colorList.push_back(temp);
+                    depthList.push_back(temp);
+                }
+
+                break;
+            case DatasetMode::TUM :
+                while (!inf.eof()) {
+                    getline(inf, line);
+
+                    comma = line.find(' ', 0);
+                    double timestamp = (double) atof(line.substr(0, comma).c_str());
+                    if(timestamp < 1e-3) continue;
+
+                    comma2 = line.find(' ', comma + 1);
+                    string colorName = line.substr(comma + 1, comma2 - comma-1).c_str();
+
+                    comma = line.find(' ', comma2+1);
+                    string temp1 = line.substr(comma2+1, comma-comma2-1);
+                    timestamp = (double) atof(temp1.c_str());
+
+                    comma2 = line.find('g', comma + 1);
+                    string depthName = line.substr(comma + 1, comma2 - comma).c_str();
+
+                    temp.timeStamp = timestamp;
+                    if(temp.timeStamp < 1e-3) continue;
+                    temp.imgName = colorName;
+                    colorList.push_back(temp);
+                    temp.imgName = depthName;
+                    depthList.push_back(temp);
+                }
+
+                break;
+            case DatasetMode::MyZR300 :
+            case DatasetMode::MyD435i :
+            case DatasetMode::MyAzureKinect :
+                getline(inf, line);
+                while (!inf.eof()) {
+                    getline(inf, line);
+
+                    comma = line.find(',', 0);
+                    string temp1 = line.substr(0, comma);
+                    double timestamp =  (double) atof(temp1.c_str());
+                    if(timestamp < 1e-3) continue;
+                    comma2 = line.find('g', comma + 1);
+                    string imgName = line.substr(comma + 1, comma2 - comma).c_str();
+
+                    temp.timeStamp = timestamp * 1e-6;
+                    temp.imgName = imgName;
+                    colorList.push_back(temp);
+                    depthList.push_back(temp);
+                }
+                break;
+            default: //my dataset, i.e. the color and depth image have same timestamp(name).
+                break;
         }
 
         inf.close();
@@ -88,7 +149,8 @@ namespace DataReader {
                 comma = comma2;
             }
             if(imuTimeStamp < 1e-3) continue;
-            IMUData tempImu(grad[0], grad[1], grad[2], acc[0], acc[1], acc[2], imuTimeStamp);
+//            IMUData tempImu(grad[0], grad[1], grad[2], acc[0], acc[1], acc[2], imuTimeStamp + 0.00892/* * 1e-6*/); //eth3d
+            IMUData tempImu(grad[0], grad[1], grad[2], acc[0], acc[1], acc[2], imuTimeStamp  * 1e-6);
             vimuData.push_back(tempImu);
 
             j = 0;

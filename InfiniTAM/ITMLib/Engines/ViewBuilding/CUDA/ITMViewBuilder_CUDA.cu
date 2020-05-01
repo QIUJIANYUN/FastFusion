@@ -1,10 +1,12 @@
 // Copyright 2014-2017 Oxford University Innovation Limited and the authors of InfiniTAM
 
+#include <iostream>
 #include "ITMViewBuilder_CUDA.h"
 
 #include "../Shared/ITMViewBuilder_Shared.h"
 #include "../../../../ORUtils/CUDADefines.h"
 #include "../../../../ORUtils/MemoryBlock.h"
+#include "../../../Utils/ITMCUDAUtils.h"
 
 using namespace ITMLib;
 using namespace ORUtils;
@@ -27,30 +29,33 @@ __global__ void zr300_depth_denoise_piece_device(float *imageData_out, const flo
 __global__ void zr300_depth_denoise_point_device(float *imageData_out, const float *imageData_in, Vector2i imgDims);
 __global__ void filterBilateral_device(float *imageData_out, const float *imageData_in, Vector2i imgDims);
 __global__ void ComputeNormalAndWeight_device(const float* depth_in, Vector4f* normal_out, float *sigmaL_out, Vector2i imgDims, Vector4f intrinsic);
-
+__global__ void SumDepth_device(int *validNumber, float *totaldepth, const float *imageData_in, Vector2i imgDims);
 //---------------------------------------------------------------------------
 //
 // host methods
 //
 //---------------------------------------------------------------------------
 
+void ITMViewBuilder_CUDA::InitView(ITMView **view_ptr, bool modelSensorNoise)
+{
+    if (*view_ptr == NULL)
+    {
+        *view_ptr = new ITMView(calib, calib.intrinsics_rgb.imgSize, calib.intrinsics_d.imgSize, true);
+        if (this->shortImage != NULL) delete this->shortImage;
+        this->shortImage = new ITMShortImage(calib.intrinsics_d.imgSize, true, true);
+        if (this->floatImage != NULL) delete this->floatImage;
+        this->floatImage = new ITMFloatImage(calib.intrinsics_d.imgSize, true, true);
+
+        if (modelSensorNoise)
+        {
+            (*view_ptr)->depthNormal = new ITMFloat4Image(calib.intrinsics_d.imgSize, true, true);
+            (*view_ptr)->depthUncertainty = new ITMFloatImage(calib.intrinsics_d.imgSize, true, true);
+        }
+    }
+}
+
 void ITMViewBuilder_CUDA::UpdateView(ITMView **view_ptr, ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, bool useBilateralFilter, bool modelSensorNoise, bool storePreviousImage)
 {
-	if (*view_ptr == NULL)
-	{
-		*view_ptr = new ITMView(calib, rgbImage->noDims, rawDepthImage->noDims, true);
-		if (this->shortImage != NULL) delete this->shortImage;
-		this->shortImage = new ITMShortImage(rawDepthImage->noDims, true, true);
-		if (this->floatImage != NULL) delete this->floatImage;
-		this->floatImage = new ITMFloatImage(rawDepthImage->noDims, true, true);
-
-		if (modelSensorNoise)
-		{
-			(*view_ptr)->depthNormal = new ITMFloat4Image(rawDepthImage->noDims, true, true);
-			(*view_ptr)->depthUncertainty = new ITMFloatImage(rawDepthImage->noDims, true, true);
-		}
-	}
-
 	ITMView *view = *view_ptr;
 
 	if (storePreviousImage)
@@ -89,6 +94,8 @@ void ITMViewBuilder_CUDA::UpdateView(ITMView **view_ptr, ITMUChar4Image *rgbImag
 		view->depth->SetFrom(this->floatImage, MemoryBlock<float>::CUDA_TO_CPU);
 	}
 
+    this->ComputeAverageDepth(view->average_depth, view->depth);
+
 	if (modelSensorNoise)
 	{
 		this->ComputeNormalAndWeights(view->depthNormal, view->depthUncertainty, view->depth, view->calib.intrinsics_d.projectionParamsSimple.all);
@@ -97,21 +104,6 @@ void ITMViewBuilder_CUDA::UpdateView(ITMView **view_ptr, ITMUChar4Image *rgbImag
 
 void ITMViewBuilder_CUDA::UpdateView(ITMView **view_ptr, ITMUChar4Image *rgbImage, ITMShortImage *depthImage, bool useBilateralFilter, ITMIMUMeasurement *imuMeasurement, bool modelSensorNoise, bool storePreviousImage)
 {
-	if (*view_ptr == NULL) 
-	{
-		*view_ptr = new ITMViewIMU(calib, rgbImage->noDims, depthImage->noDims, true);
-		if (this->shortImage != NULL) delete this->shortImage;
-		this->shortImage = new ITMShortImage(depthImage->noDims, true, true);
-		if (this->floatImage != NULL) delete this->floatImage;
-		this->floatImage = new ITMFloatImage(depthImage->noDims, true, true);
-
-		if (modelSensorNoise)
-		{
-			(*view_ptr)->depthNormal = new ITMFloat4Image(depthImage->noDims, true, true);
-			(*view_ptr)->depthUncertainty = new ITMFloatImage(depthImage->noDims, true, true);
-		}
-	}
-
 	ITMViewIMU* imuView = (ITMViewIMU*)(*view_ptr);
 	imuView->imu->SetFrom(imuMeasurement);
 
@@ -120,21 +112,6 @@ void ITMViewBuilder_CUDA::UpdateView(ITMView **view_ptr, ITMUChar4Image *rgbImag
 
 void ITMViewBuilder_CUDA::UpdateView(ITMView **view_ptr, ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, bool useBilateralFilter, cv::Mat *grayimg, std::vector<DataReader::IMUData> *relatedIMU, double imgtime, bool modelSensorNoise, bool storePreviousImage)
 {
-	if (*view_ptr == NULL)
-	{
-		*view_ptr = new ITMView(calib, rgbImage->noDims, rawDepthImage->noDims, true);
-		if (this->shortImage != NULL) delete this->shortImage;
-		this->shortImage = new ITMShortImage(rawDepthImage->noDims, true, true);
-		if (this->floatImage != NULL) delete this->floatImage;
-		this->floatImage = new ITMFloatImage(rawDepthImage->noDims, true, true);
-
-		if (modelSensorNoise)
-		{
-			(*view_ptr)->depthNormal = new ITMFloat4Image(rawDepthImage->noDims, true, true);
-			(*view_ptr)->depthUncertainty = new ITMFloatImage(rawDepthImage->noDims, true, true);
-		}
-	}
-
 	ITMView *view = *view_ptr;
 
 //	view->grayimg = grayimg;
@@ -178,9 +155,10 @@ void ITMViewBuilder_CUDA::UpdateView(ITMView **view_ptr, ITMUChar4Image *rgbImag
 	    view->depth->SetFrom(view->depth, MemoryBlock<float>::CUDA_TO_CPU);
 	}
 
+    this->ComputeAverageDepth(view->average_depth, view->depth);
 
-    if (view->aligned_depth != NULL) delete view->aligned_depth;
-    view->aligned_depth = new ITMFloatImage(rawDepthImage->noDims, true, true);
+//    if (view->aligned_depth != NULL) delete view->aligned_depth;
+//    view->aligned_depth = new ITMFloatImage(rawDepthImage->noDims, true, true);
     cudaMemset(view->aligned_depth->GetData(MEMORYDEVICE_CUDA), 0, view->aligned_depth->dataSize * sizeof(float));
 	this->depth_Align2_color(view->aligned_depth, view->depth, &(view->calib.trafo_depth_to_rgb), &(view->calib.intrinsics_d), &(view->calib.intrinsics_rgb));
 	view->aligned_depth->SetFrom(view->aligned_depth, MemoryBlock<float>::CUDA_TO_CPU);
@@ -305,11 +283,100 @@ void ITMViewBuilder_CUDA::ComputeNormalAndWeights(ITMFloat4Image *normal_out, IT
 	ORcudaKernelCheck;
 }
 
+void ITMViewBuilder_CUDA::ComputeAverageDepth(float &averageD, const ITMFloatImage *image_in)
+{
+    Vector2i imgDims = image_in->noDims;
+
+    const float *imageData_in = image_in->GetData(MEMORYDEVICE_CUDA);
+
+    int validNumber = 0;
+    float totaldepth = 0.0f;
+    averageD = 0.0f;
+
+    dim3 blockSize(16, 16);
+    dim3 gridSize((int)ceil((float)imgDims.x / (float)blockSize.x), (int)ceil((float)imgDims.y / (float)blockSize.y));
+
+    int *num;
+    float *depth;
+    ORcudaSafeCall(cudaMalloc((void**)&num, sizeof(int)));
+    ORcudaSafeCall(cudaMalloc((void**)&depth, sizeof(float)));
+    ORcudaSafeCall(cudaMemset(num, 0, sizeof(int)));
+    ORcudaSafeCall(cudaMemset(depth, 0, sizeof(float)));
+
+
+    SumDepth_device << <gridSize, blockSize >> >(num, depth, imageData_in, imgDims);
+    ORcudaKernelCheck;
+
+    ORcudaSafeCall(cudaMemcpy(&validNumber, num, sizeof(int), cudaMemcpyDeviceToHost));
+    ORcudaSafeCall(cudaMemcpy(&totaldepth, depth, sizeof(float), cudaMemcpyDeviceToHost));
+
+    if(validNumber>0) averageD = totaldepth/(float)validNumber;
+}
+
 //---------------------------------------------------------------------------
 //
 // kernel function implementation
 //
 //---------------------------------------------------------------------------
+
+
+__device__ void sumDepth(int *validNumber, float *totaldepth, const CONSTPTR(float) *imageData_in, Vector2i imgDims)
+{
+    int x = threadIdx.x + blockIdx.x * blockDim.x, y = threadIdx.y + blockIdx.y * blockDim.y;
+
+    int locId_local = threadIdx.x + threadIdx.y * blockDim.x;
+
+    __shared__ float dim_shared1[256];
+    __shared__ bool should_prefix;
+
+    should_prefix = false;
+    __syncthreads();
+
+    bool isValidPoint = false;
+    float depth = 0.0f;
+
+    if (x < imgDims.x && y < imgDims.y)
+    {
+        depth = imageData_in[x + y*imgDims.x];
+        isValidPoint = depth > 1e-3;
+        if (isValidPoint) should_prefix = true;
+    }
+
+    __syncthreads();
+
+    if (!should_prefix) return;
+
+    { //reduction for noValidPoints
+        dim_shared1[locId_local] = isValidPoint;
+        __syncthreads();
+
+        if (locId_local < 128) dim_shared1[locId_local] += dim_shared1[locId_local + 128];
+        __syncthreads();
+        if (locId_local < 64) dim_shared1[locId_local] += dim_shared1[locId_local + 64];
+        __syncthreads();
+
+        if (locId_local < 32) warpReduce(dim_shared1, locId_local);
+
+        if (locId_local == 0) atomicAdd(validNumber, (int)dim_shared1[locId_local]);
+    }
+    __syncthreads();
+
+    { //reduction for energy function value
+        dim_shared1[locId_local] = depth;
+        __syncthreads();
+
+        if (locId_local < 128) dim_shared1[locId_local] += dim_shared1[locId_local + 128];
+        __syncthreads();
+        if (locId_local < 64) dim_shared1[locId_local] += dim_shared1[locId_local + 64];
+        __syncthreads();
+
+        if (locId_local < 32) warpReduce(dim_shared1, locId_local);
+
+        if (locId_local == 0) atomicAdd(totaldepth, dim_shared1[locId_local]);
+    }
+
+}
+
 
 __global__ void alignDepth2Color_device(float *d_out, const float *d_in, const Matrix4f d2c, const Vector4f depth,
                                         const Vector4f color, Vector2i imgSize)
@@ -410,5 +477,10 @@ __global__ void ComputeNormalAndWeight_device(const float* depth_in, Vector4f* n
 	{
 		computeNormalAndWeight(depth_in, normal_out, sigmaZ_out, x, y, imgDims, intrinsic);
 	}
+}
+
+__global__ void SumDepth_device(int *validNumber, float *totaldepth, const float *imageData_in, Vector2i imgDims)
+{
+    sumDepth(validNumber, totaldepth, imageData_in, imgDims);
 }
 

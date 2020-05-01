@@ -7,13 +7,15 @@ using namespace ITMLib;
 #include <cmath>
 
 //use which sensor
-#define D435I
+//#define D435I
 //#define ZR300
-//#define AZUREKINECT
+#define AZUREKINECT
+//#define BADSLAM
 
 ITMLibSettings::ITMLibSettings(void)
-:	sceneParams(0.02f, 100, 0.01f, 0.1f, 5.0f, false)
+:	sceneParams(0.04f, 100, 0.01f, 0.1f, 6.0f, false)
 {
+    useIMU = false;
     //sensor parameters
 #ifdef D435I
     rovio_filter_config = "/home/zhuzunjie/Projects/InfiniTAM/InfiniTAM/Files/D435i/rovio.info";
@@ -24,20 +26,23 @@ ITMLibSettings::ITMLibSettings(void)
     rovio_camera_config = "/home/zhuzunjie/Projects/InfiniTAM/InfiniTAM/Files/realsense/realsense.yaml";
 #else
 #ifdef AZUREKINECT
-    rovio_filter_config = "/home/zhuzunjie/Projects/InfiniTAM/InfiniTAM/Files/realsense/rovio.info";
-    rovio_camera_config = "/home/zhuzunjie/Projects/InfiniTAM/InfiniTAM/Files/realsense/realsense.yaml";
+    rovio_filter_config = "/home/zhuzunjie/Projects/InfiniTAM/InfiniTAM/Files/Azurekinect/rovio.info";
+    rovio_camera_config = "/home/zhuzunjie/Projects/InfiniTAM/InfiniTAM/Files/Azurekinect/realsense.yaml";
+#else
+#ifdef BADSLAM
+    rovio_filter_config = "/home/zhuzunjie/Projects/InfiniTAM/InfiniTAM/Files/ETH3D/rovio.info";
+    rovio_camera_config = "/home/zhuzunjie/Projects/InfiniTAM/InfiniTAM/Files/ETH3D/realsense.yaml";
+#endif
 #endif
 #endif
 #endif
 
     //save images sequence results for side by side compare
-    shotImageDir = "/home/zhuzunjie/Videos/TVCGvideo/rent1_slowloop2/InfiniTAM";
+    shotImageDir = "/home/zhuzunjie/Videos/azurekinect/homeslow/";
 
     //extra
     saveRefinedepth = false;
-    useIMU = false;
     saveTraj = false;
-    traj_save_dir = "../../../traj_trans_only.txt";
 
 
 	// skips every other point when using the colour renderer for creating a point cloud
@@ -64,32 +69,31 @@ ITMLibSettings::ITMLibSettings(void)
 	useApproximateRaycast = false;
 
 	/// enable or disable bilateral depth filtering
-	useBilateralFilter = true;
+    useBilateralFilter = false;
 
 	/// what to do on tracker failure: ignore, relocalise or stop integration - not supported in loop closure version
 //	behaviourOnFailure = FAILUREMODE_RELOCALISE; //TODO not complete
 	behaviourOnFailure = FAILUREMODE_IGNORE;
 
 	/// switch between various library modes - basic, with loop closure, etc.
-	libMode = LIBMODE_BASIC;
-//    libMode = LIBMODE_LOOPCLOSURE;
+//	libMode = LIBMODE_BASIC;
+    libMode = LIBMODE_LOOPCLOSURE;
 
-    k_LoopCloseNeighbours = 3;
-    //F_MaxDistatTemptReloc = 0.10f; //rgbd
-    F_MaxDistatTemptReloc = 0.1f; //d good for rent1/loopclosure2
-//    F_MaxDistatTemptReloc = 0.08f; //d
-    F_MinDistAddKeyframe = 0.15f;// rgbd
-//    F_MinDistAddKeyframe = 0.10f;// d
+    //parameters for loop closure detection
+    k_LoopCloseNeighbours = 5;
+    F_MaxDistatTemptReloc = 0.1f; //good for rent1/slow
+    F_MinDistAddKeyframe = 0.1f;// rgbd
     separateThreadGlobalAdjustment = false;
     numFerns = 1000;
     numDecisionsPerFern = 4;
-    relocType = FernRelocLib::RelocType::DepthOnly;
+    relocType = FernRelocLib::RelocType::Both;
+
 
     // FastFusion
     trackerConfig = "type=fastfusion,levels=rrrtb,minstep=1e-5,"
-                    "outlierC=0.15,outlierF=0.05,"
+                    "outlierC=0.25,outlierF=0.15,"
                     "numiterC=10,numiterF=30,failureDec=30.0"; // 5 for normal, 20 for loop closure
-    useIMU = true;
+//    useIMU = true;
 
 /*    //Colour only tracking, using rendered colours
 //	trackerConfig = "type=rgb,levels=rrbb";

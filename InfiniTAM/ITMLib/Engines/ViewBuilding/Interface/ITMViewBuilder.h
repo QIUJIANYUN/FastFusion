@@ -28,6 +28,9 @@ namespace ITMLib
 		virtual void UpdateView(ITMView **view, ITMUChar4Image *rgbImage, ITMShortImage *depthImage, bool useBilateralFilter, ITMIMUMeasurement *imuMeasurement, bool modelSensorNoise = false, bool storePreviousImage = true) = 0;
 		virtual void UpdateView(ITMView **view, ITMUChar4Image *rgbImage, ITMShortImage *rawDepthImage, bool useBilateralFilter, cv::Mat *grayimg, std::vector<DataReader::IMUData> *relatedIMU, double imgtime, bool modelSensorNoise = false, bool storePreviousImage = true) = 0;
 
+		virtual void InitView(ITMView **view_ptr, bool modelSensorNoise = false) = 0;
+
+
 		ITMViewBuilder(const ITMRGBDCalib& calib_)
 		: calib(calib_)
 		{
