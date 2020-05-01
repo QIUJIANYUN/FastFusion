@@ -34,6 +34,7 @@ namespace ITMLib
 
 		virtual const ORUtils::SE3Pose* getTrackingPose(int localMapId) const = 0;
 		virtual int getLocalMapSize(int localMapId) const = 0;
+        virtual int getNumAllocatedVoxelBlocks(int localMapId) const = 0;
 		virtual int countVisibleBlocks(int localMapId, int minBlockId, int maxBlockId, bool invertIDs) const = 0;
 	};
 
@@ -72,6 +73,7 @@ namespace ITMLib
 		const ORUtils::SE3Pose* getTrackingPose(int localMapId) const { return getLocalMap(localMapId)->trackingState->pose_d; }
 
 		int getLocalMapSize(int localMapId) const;
+        int getNumAllocatedVoxelBlocks(int localMapId) const;
 		int countVisibleBlocks(int localMapId, int minBlockId, int maxBlockId, bool invertIDs) const;
 
 		ORUtils::SE3Pose findTransformation(int fromlocalMapId, int tolocalMapId) const;

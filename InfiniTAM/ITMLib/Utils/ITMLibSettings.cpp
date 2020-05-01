@@ -76,13 +76,13 @@ ITMLibSettings::ITMLibSettings(void)
 	behaviourOnFailure = FAILUREMODE_IGNORE;
 
 	/// switch between various library modes - basic, with loop closure, etc.
-//	libMode = LIBMODE_BASIC;
-    libMode = LIBMODE_LOOPCLOSURE;
+	libMode = LIBMODE_BASIC;
+//    libMode = LIBMODE_LOOPCLOSURE;
 
     //parameters for loop closure detection
     k_LoopCloseNeighbours = 5;
-    F_MaxDistatTemptReloc = 0.1f; //good for rent1/slow
-    F_MinDistAddKeyframe = 0.1f;// rgbd
+    F_MaxDistatTemptReloc = 0.10f; //good for rent1/slow
+    F_MinDistAddKeyframe = 0.10f;// rgbd
     separateThreadGlobalAdjustment = false;
     numFerns = 1000;
     numDecisionsPerFern = 4;

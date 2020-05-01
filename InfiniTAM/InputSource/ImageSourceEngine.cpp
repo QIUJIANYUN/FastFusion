@@ -381,7 +381,7 @@ void DatasetReader::loadIntoCache() const
 	cached_depth = new ITMShortImage(true, false);
 
 //    string str = color_dir + vColorList[currentFrameNo].imgName;
-	string str = color_dir + vColorList[currentFrameNo-4].imgName;
+	string str = color_dir + vColorList[currentFrameNo-3].imgName;
 	string str_rovio = color_dir + vColorList[currentFrameNo].imgName;
 	printf(str.c_str());
 
@@ -395,7 +395,7 @@ void DatasetReader::loadIntoCache() const
 
 	str.clear(); str_rovio.clear();
 //    str = depth_dir + vDepthList[currentFrameNo].imgName;
-	str = depth_dir + vDepthList[currentFrameNo-4].imgName;
+	str = depth_dir + vDepthList[currentFrameNo-3].imgName;
 	if (!ReadImageFromFile(cached_depth, str.c_str()))
 	{
 		delete cached_depth; cached_depth = NULL;

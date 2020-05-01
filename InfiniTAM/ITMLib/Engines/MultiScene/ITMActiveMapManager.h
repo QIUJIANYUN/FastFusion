@@ -33,6 +33,7 @@ namespace ITMLib
 		void AcceptNewLink(int dataId, int primaryDataId, const ORUtils::SE3Pose & pose, int weight);
 
 		float visibleOriginalBlocks(int dataID) const;
+        float lastFreeBlocks(int dataID) const;
 		bool shouldStartNewArea(void) const;
 		bool shouldMovePrimaryLocalMap(int newDataIdx, int bestDataIdx, int primaryDataIdx) const;
 

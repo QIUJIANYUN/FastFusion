@@ -72,6 +72,16 @@ float ITMActiveMapManager::visibleOriginalBlocks(int dataID) const
 	return (float)counted / (float)tmp;
 }
 
+float ITMActiveMapManager::lastFreeBlocks(int dataID) const
+{
+    int localMapId = activeData[dataID].localMapIndex;
+
+    int allocatedVoxels = localMapManager->getLocalMapSize(localMapId);
+	int allVoxels = localMapManager->getNumAllocatedVoxelBlocks(localMapId);
+
+    return (float)allocatedVoxels / (float) allVoxels;
+}
+
 bool ITMActiveMapManager::shouldStartNewArea(void) const
 {
 	int primaryLocalMapIdx = -1;
@@ -90,7 +100,8 @@ bool ITMActiveMapManager::shouldStartNewArea(void) const
 
 	// TODO: check: if relocalisation fails for some time, start new local map
 	if (primaryLocalMapIdx < 0) return false;
-	else return visibleOriginalBlocks(primaryDataIdx) < F_originalBlocksThreshold;
+//	else return (visibleOriginalBlocks(primaryDataIdx) < F_originalBlocksThreshold || lastFreeBlocks(primaryDataIdx) > (float)0.9 );
+    else return lastFreeBlocks(primaryDataIdx) > (float)0.9;
 
 	return false;
 }

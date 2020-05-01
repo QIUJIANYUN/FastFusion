@@ -94,6 +94,15 @@ namespace ITMLib
 		return scene->index.getNumAllocatedVoxelBlocks() - scene->localVBA.lastFreeBlockId - 1;
 	}
 
+    template<class TVoxel, class TIndex>
+    int ITMVoxelMapGraphManager<TVoxel, TIndex>::getNumAllocatedVoxelBlocks(int localMapId) const
+    {
+        if ((localMapId < 0) || ((unsigned)localMapId >= allData.size())) return -1;
+
+        ITMScene<TVoxel, TIndex> *scene = allData[localMapId]->scene;
+        return scene->index.getNumAllocatedVoxelBlocks();
+    }
+
 	template<class TVoxel, class TIndex>
 	int ITMVoxelMapGraphManager<TVoxel, TIndex>::countVisibleBlocks(int localMapId, int minBlockId, int maxBlockId, bool invertIds) const
 	{
