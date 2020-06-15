@@ -11,6 +11,7 @@
 
 #include <math.h>
 #include <limits>
+#include <iostream>
 
 using namespace ITMLib;
 
@@ -392,20 +393,23 @@ void ITMExtendedTracker::UpdatePoseQuality(int noValidPoints_old, float *hessian
 
 	trackingState->trackerResult = ITMTrackingState::TRACKING_FAILED;
 	trackingState->trackerScore = finalResidual_v2;
+//
+//	if (noValidPointsMax != 0 && noTotalPoints != 0 && det_norm_v1 > 0 && det_norm_v2 > 0) {
+//		Vector4f inputVector(log(det_norm_v1), log(det_norm_v2), finalResidual_v2, percentageInliers_v2);
+//
+//		Vector4f normalisedVector = (inputVector - mu) / sigma;
+//
+//		float mapped[20];
+//		map->evaluate(mapped, normalisedVector.v, 4);
+//
+//		float score = svmClassifier->Classify(mapped);
+//
+//		if (score > 0) trackingState->trackerResult = ITMTrackingState::TRACKING_GOOD;
+//		else if (score > -10.0f) trackingState->trackerResult = ITMTrackingState::TRACKING_POOR;
+//	}
+		if (percentageInliers_v2 >0.2f) trackingState->trackerResult = ITMTrackingState::TRACKING_GOOD;
+		else trackingState->trackerResult = ITMTrackingState::TRACKING_POOR;
 
-	if (noValidPointsMax != 0 && noTotalPoints != 0 && det_norm_v1 > 0 && det_norm_v2 > 0) {
-		Vector4f inputVector(log(det_norm_v1), log(det_norm_v2), finalResidual_v2, percentageInliers_v2);
-
-		Vector4f normalisedVector = (inputVector - mu) / sigma;
-
-		float mapped[20];
-		map->evaluate(mapped, normalisedVector.v, 4);
-
-		float score = svmClassifier->Classify(mapped);
-
-		if (score > 0) trackingState->trackerResult = ITMTrackingState::TRACKING_GOOD;
-		else if (score > -10.0f) trackingState->trackerResult = ITMTrackingState::TRACKING_POOR;
-	}
 }
 
 void ITMExtendedTracker::TrackCamera(ITMTrackingState *trackingState, const ITMView *view)
@@ -584,4 +588,6 @@ void ITMExtendedTracker::TrackCamera(ITMTrackingState *trackingState, const ITMV
 	}
 
 	this->UpdatePoseQuality(noValidPoints_depth_good, hessian_depth_good, f_depth_good);
+	std::cout << trackingState->trackerResult << std::endl;
+
 }

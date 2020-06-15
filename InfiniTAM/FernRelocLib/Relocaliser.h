@@ -146,8 +146,8 @@ namespace FernRelocLib
                     filterSubsample(rgbImage1, rgbImage2); // 160x120
                     filterSubsample(rgbImage2, rgbImage1); // 80x60
                     filterSubsample(rgbImage1, rgbImage2); // 40x30
-//                    filterGaussian(rgbImage2, rgbImage1, 2.5f);
-                    encoding->computeCode(depthImage1, rgbImage2, code);
+                    filterGaussian(rgbImage2, rgbImage1, 2.5f);
+                    encoding->computeCode(depthImage1, rgbImage1, code);
                 }
             }
 
@@ -158,7 +158,6 @@ namespace FernRelocLib
 
 			// find similar frames
 			int similarFound = relocDatabase->findMostSimilar(code, nearestNeighbours, distances, k);
-
 //            cout << similarFound <<endl;
 //            cout<< distances[0]<< " " << distances[1] <<endl;
 

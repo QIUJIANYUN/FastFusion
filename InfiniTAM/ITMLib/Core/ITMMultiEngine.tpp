@@ -238,7 +238,6 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 		// - second tracking pass will be about newly detected loop closures, relocalisations, etc.
 
         TICK("4-LCD");
-
 		//LCD & newly LC
 		if (todoList[i].dataId == -1)
 		{
@@ -263,6 +262,7 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 //            TOCK("4.1-coding&comparing");
             double t2 = cv::getTickCount();
             LCDtimeCost = (t2-t1)/cv::getTickFrequency();
+
             std::cout << "----distance:" << distances[0] << endl;
 
 #ifdef DEBUG_LCD
@@ -314,6 +314,10 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 #endif
 					}
 				}
+			} else{
+                cout << "----Keyframe number:" << relocaliser->GetKeyframeNum()<<endl;
+                cout<< "----Total submap number: " << mapManager->numLocalMaps() << endl;
+                fkeyframe << trackNums << " " << mapManager->numLocalMaps() << " " << relocaliser->GetKeyframeNum() << " " << LCDtimeCost *1e3 << endl;
 			}
 
 			continue;
@@ -333,6 +337,7 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 			trackingController->Prepare(currentLocalMap->trackingState, currentLocalMap->scene, view, visualisationEngine, currentLocalMap->renderState);
 		}
 
+		TICK("track");
 		if (todoList[i].track)
 		{
 			int dataId = todoList[i].dataId;
@@ -384,7 +389,7 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 			//收尾
 			mActiveDataManager->recordTrackingResult(dataId, trackingResult, primaryTrackingSuccess);
 		}
-
+        TOCK("track");
 		// fusion in any subscene as long as tracking is good for the respective subscene
 		if (todoList[i].fusion) denseMapper->ProcessFrame(view, currentLocalMap->trackingState, currentLocalMap->scene, currentLocalMap->renderState);
 		else if (todoList[i].prepare) denseMapper->UpdateVisibleList(view, currentLocalMap->trackingState, currentLocalMap->scene, currentLocalMap->renderState);
@@ -442,6 +447,7 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 		mActiveDataManager->generateNewSubMap = false;
     }
 
+	TICK("Global Optimize");
 	//LC
 	if (mScheduleGlobalAdjustment) 
 	{
@@ -455,10 +461,8 @@ ITMTrackingState::TrackingResult ITMMultiEngine<TVoxel, TIndex>::ProcessFrame(IT
 	}
     //将优化好的pose赋给各个localmap
 	mGlobalAdjustmentEngine->retrieveNewEstimates(*mapManager);
+    TOCK("Global Optimize");
 
-    cout << "----Keyframe number:" << relocaliser->GetKeyframeNum()<<endl;
-    cout<< "----Total submap number: " << mapManager->numLocalMaps() << endl;
-    fkeyframe << trackNums << " " << mapManager->numLocalMaps() << " " << relocaliser->GetKeyframeNum() << " " << LCDtimeCost *1e3 << endl;
 	trackNums++;
 
 	return primaryLocalMapTrackingResult;

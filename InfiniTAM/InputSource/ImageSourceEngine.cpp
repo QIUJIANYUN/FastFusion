@@ -352,12 +352,12 @@ DatasetReader::DatasetReader(const string cal, const string dir, int dm): BaseIm
 //    strncpy(this->depthImageMask, depth_dir.c_str(), BUF_SIZE);
 //    strncpy(this->IMU, imu_dir.c_str(), BUF_SIZE);
 
-    DataReader::loadImageList(dir.c_str(), associate_dir.c_str(),vColorList, vDepthList, dm);
+    DataReader::loadImageList(depth_dir.c_str(), associate_dir.c_str(),vColorList, vDepthList, dm);
     DataReader::loadIMUFile(imu_dir.c_str(), vIMUList);
 
     totalFrameNo = (int)vColorList.size();
 //    currentFrameNo = 0;//图像开始位置
-    currentFrameNo = 5;//图像开始位置
+    currentFrameNo = 3;//图像开始位置
     if(vIMUList.size()>0) timestampAlignment();
 
     cachedFrameNo = currentFrameNo - 1;

@@ -277,8 +277,8 @@ namespace ITMLib
 		float smallStepSizeCriterion = 1e-4f;
 		float outlierSpaceDistanceFine = 0.004f;
 		float outlierSpaceDistanceCoarse = 0.1f;
-		float outlierColourDistanceFine = 0.175f;
-		float outlierColourDistanceCoarse = 0.005f;
+		float outlierColourDistanceFine = 0.005f;
+		float outlierColourDistanceCoarse = 0.175f;
 		float failureDetectorThd = 3.0f;
 		float minColourGradient = 0.01f;
 		float tukeyCutOff = 8.0f;

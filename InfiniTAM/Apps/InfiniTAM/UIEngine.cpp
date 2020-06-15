@@ -529,7 +529,7 @@ void UIEngine::glutMouseWheelFunction(int button, int dir, int x, int y)//TODO: 
 void UIEngine::Initialise(int & argc, char** argv, ImageSourceEngine *imageSource, ITMMainEngine *mainEngine,
 	const char *outFolder, ITMLibSettings *settings)
 {
-    timecost.open("times.txt");
+    timecost.open("../../../times.txt");
 	this->freeviewActive = false;
 	this->integrationActive = true;
 	this->currentColourMode = 0;
